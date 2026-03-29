@@ -392,3 +392,36 @@
 - Structured logging for all Cosmos CRUD operations
 - InMemory repositories retained for test compatibility
 
+### Home Page Backend API (2026-03-29)
+
+**Status:** ✅ COMPLETE — Build clean (0 warnings/errors), 113 unit tests pass.
+
+**Summary:** Implemented backend changes for home page document listing feature per Richard's API design.
+
+**Model Changes:**
+- `Document.cs` — added `Title`, `Status` (DocumentStatus), `CreatedAt`, `UpdatedAt` with record defaults for backward-compatible Cosmos deserialization
+- New: `DocumentStatus.cs` (Draft/Analyzed), `DocumentSummary.cs` (listing DTO), `DocumentListResponse.cs` (wrapper)
+- `PasteDocumentRequest.cs` — added optional `Title`
+
+**API Changes:**
+- `GET /api/documents` — `DocumentListResponse` with projections sorted by UpdatedAt desc; handles legacy docs (missing title → filename, missing status → inferred from suggestion count)
+- `POST /api/documents/upload` — accepts `[FromForm] string? title`, defaults to `"{now} - {filename}"`, sets Draft + timestamps
+- `POST /api/documents/paste` — accepts `title` in body, defaults to `"{now} - {filename|Untitled}"`, sets Draft + timestamps
+- `POST /api/documents/{id}/analyze` — sets `Status=Analyzed`, `UpdatedAt=UtcNow` after analysis
+
+**Key Files:**
+- `src/Domain/Models/Document.cs`, `DocumentStatus.cs`, `DocumentSummary.cs`, `DocumentListResponse.cs`, `PasteDocumentRequest.cs`
+- `src/Api/Controllers/DocumentsController.cs`
+
+**Design Notes:**
+- No repository or interface changes needed — `GetByUserAsync` already existed
+- Legacy Cosmos documents deserialize cleanly — new fields use record defaults (empty title, Draft status, MinValue timestamps)
+- List endpoint projection handles fallbacks at query time (empty title → filename, status inferred from suggestion count)
+
+### 2026-03-29 — Cross-Agent: Home Page Feature Complete
+
+**Richard (Lead):** API design accepted and implemented as specified. Flat REST hierarchy decision upheld.
+
+**Dinesh (Frontend):** React Router v7 with HomePage consuming `GET /api/documents`. Title input on DocumentUploader sends optional title on upload/paste. Build clean, 82+ tests pass.
+
+**Jared (Tester):** 42 backend tests covering all new DTOs, enum serialization, status transitions, title defaults. All pass against Gilfoyle's implementation.

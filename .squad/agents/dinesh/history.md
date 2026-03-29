@@ -27,6 +27,52 @@
 - `marginalia-app/src/types/api.ts`
 - `marginalia-app/src/types/index.ts`
 
+### Home Page, React Router & Title Support (2026-03-29)
+
+**Status:** ✅ COMPLETE — Build clean (tsc 0 errors), 82 tests pass (2 pre-existing failures in api.test.ts unrelated to this work).
+
+**What was built:**
+1. **React Router (v7.13.2):** Routes `/` (Home), `/new` (upload), `/editor/:documentId` (editor). BrowserRouter in App.tsx.
+2. **HomePage (`pages/HomePage.tsx`):** Lists manuscripts from `GET /api/documents`. Shows title, status badge (Draft/Analyzed), date, suggestion count. Empty state with "No manuscripts yet" message.
+3. **useDocuments hook (`hooks/useDocuments.ts`):** `{ documents, isLoading, error, loadDocuments }` — follows existing hook pattern.
+4. **DocumentSummary type:** Added to `types/document.ts` along with `DocumentStatus` and `DocumentListResponse` in `types/api.ts`.
+5. **Document model updated:** Added `title`, `status`, `createdAt`, `updatedAt` fields.
+6. **DocumentUploader title input:** Optional text input above the upload area. Title flows through to `uploadDocument(file, title)` and `pasteDocument({ content, filename, title })`.
+7. **apiPostFile extended:** Now accepts optional `extraFields` record for additional FormData fields (used for title on upload).
+8. **EditorPage routing:** Uses `useParams` for documentId, loads existing doc on mount, navigates to `/editor/{id}` after upload/paste (replace: true to avoid back-button loops). "New" button navigates to `/`.
+9. **AppHeader home link:** Marginalia logo is now a `<Link to="/">`.
+10. **listDocuments service:** Added `apiGet<DocumentListResponse>('/api/documents')`.
+
+**Key files changed:**
+- `marginalia-app/src/App.tsx` — BrowserRouter + Routes
+- `marginalia-app/src/pages/HomePage.tsx` — NEW
+- `marginalia-app/src/pages/EditorPage.tsx` — react-router params + navigation
+- `marginalia-app/src/hooks/useDocuments.ts` — NEW
+- `marginalia-app/src/hooks/useDocument.ts` — title params on upload/paste
+- `marginalia-app/src/components/DocumentUploader.tsx` — title input
+- `marginalia-app/src/components/AppHeader.tsx` — Home link
+- `marginalia-app/src/types/document.ts` — DocumentStatus, DocumentSummary, Document fields
+- `marginalia-app/src/types/api.ts` — DocumentListResponse, PasteRequest.title
+- `marginalia-app/src/types/index.ts` — re-exports
+- `marginalia-app/src/services/documentService.ts` — listDocuments, title params
+- `marginalia-app/src/services/api.ts` — apiPostFile extraFields
+- `marginalia-app/src/services/index.ts` — export listDocuments
+- `marginalia-app/tests/components/DocumentUploader.test.tsx` — updated assertions for new signatures
+
+**Design decisions:**
+- HomePage has its own minimal header (not full AppHeader) since it doesn't need editor controls.
+- Title is optional — backend generates default per Richard's spec.
+- `navigate(replace: true)` after upload/paste prevents back-button loops.
+- Home button goes to `/` (full manuscript list) not just state-clear.
+
+### 2026-03-29 — Cross-Agent: Home Page Feature Complete
+
+**Richard (Lead):** API contracts designed and approved. Flat REST hierarchy, DocumentSummary DTO, title defaults.
+
+**Gilfoyle (Backend):** All backend endpoints implemented matching API design. Build clean, 163 tests pass. Legacy Cosmos documents handled with sensible defaults.
+
+**Jared (Tester):** Frontend tests for HomePage, useDocuments, and DocumentUploader title written. All pass against Dinesh's implementation.
+
 ### Aspire Service Discovery — Frontend API Base URL (2026-03-22)
 
 **Status:** ✅ COMPLETE — Build clean, 84 tests pass.

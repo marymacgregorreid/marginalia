@@ -99,6 +99,24 @@
     - **Controllers:** Added `GetUserId(HttpRequest)` helper to extract `X-User-Id` header (defaults to `"_anonymous"`).
     - **Consequences:** Data persists across restarts; multi-tenant isolation enforced; clear upgrade path to Azure Cosmos DB. Requires Docker for local emulator.
 
+### Home Page Feature — API Design & Implementation (2026-03-29)
+
+1. **Document Model Extensions:** Added four fields to `Document`: `Title` (string), `Status` (DocumentStatus), `CreatedAt` (DateTimeOffset), `UpdatedAt` (DateTimeOffset). Records use `required init` with `[JsonPropertyName]`. Backward-compatible with existing Cosmos DB documents via sensible defaults on read (empty title → filename, missing status → Draft or Analyzed based on suggestions, missing timestamps → MinValue).
+
+2. **DocumentStatus Enum:** `Draft` (uploaded/created, never analyzed) and `Analyzed` (at least one analysis pass completed). One-way transition — status never goes backward. Re-analysis keeps Analyzed.
+
+3. **Flat REST Hierarchy:** Documents remain a top-level resource. Sessions are NOT parents of documents. Rationale: users think "show me my manuscripts," not "show me my sessions." A session references documents but does not own them. Current hierarchy: `/api/documents` (list), `/api/documents/upload`, `/api/documents/paste`, `/api/documents/{id}`, `/api/documents/{id}/suggestions`, `/api/documents/{id}/analyze`, `/api/documents/{id}/export`.
+
+4. **DocumentSummary DTO:** Lightweight projection for listing — includes id, title, filename, source, status, createdAt, updatedAt, suggestionCount. Excludes `content` and `suggestions` arrays. Keeps listing response small.
+
+5. **DocumentListResponse Wrapper:** Wraps `DocumentSummary[]` in `{ "documents": [...] }` object (not bare array). Allows adding pagination metadata later without breaking the contract.
+
+6. **Title Generation Rules:** Title is optional on upload/paste. Defaults: upload → `"{createdAt:yyyy-MM-dd HH:mm} - {filename}"`, paste → `"{createdAt:yyyy-MM-dd HH:mm} - Untitled"`. Title is always user-editable after creation (future endpoint).
+
+7. **React Router v7 with BrowserRouter:** Three routes: `/` (HomePage — document listing), `/new` (EditorPage in upload mode), `/editor/:documentId` (EditorPage loading existing document). Navigate with `replace: true` after upload/paste to avoid back-button loops.
+
+8. **HomePage as Standalone Page:** HomePage has its own minimal header (branding only). Full AppHeader (with export, config, "New" button) is editor-only. AppHeader logo is a `<Link to="/">` for navigation home.
+
 2. **Frontend userId Support via X-User-Id Header:** Frontend sends `X-User-Id` header on every API request for multi-tenant support.
     - **Implementation:** Module-level `currentUserId` variable in `api.ts` (defaults to `"_anonymous"`). All fetch wrappers inject header transparently. Exports `setUserId(userId)` and `getUserId()` for future auth integration.
     - **Types:** Document, UserSession, and Suggestion interfaces now include `userId: string` field.
