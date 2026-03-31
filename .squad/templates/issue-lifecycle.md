@@ -317,7 +317,7 @@ git worktree remove ../worktrees/{issue-number}
 
 When spawning an agent to work on an issue, include this context block:
 
-```markdown
+````markdown
 ## ISSUE CONTEXT
 
 **Issue:** #{number} — {title}  
@@ -348,10 +348,9 @@ When spawning an agent to work on an issue, include this context block:
    gh pr create --title "{title}" --body "Closes #{number}\n\n{description}" --head squad/{issue-number}-{slug} --base {base-branch}
 
    ```
-
 1. Report PR URL to coordinator
 
-```text
+````
 
 ## Ralph's Role in Issue Lifecycle
 
