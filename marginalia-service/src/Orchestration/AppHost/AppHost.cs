@@ -24,7 +24,6 @@ var cosmos = builder.AddAzureCosmosDB("cosmos")
 var cosmosDb = cosmos.AddCosmosDatabase("marginalia");
 var documentsContainer = cosmosDb.AddContainer("documents", "/userId");
 var sessionsContainer = cosmosDb.AddContainer("sessions", "/userId");
-var suggestionsContainer = cosmosDb.AddContainer("suggestions", "/userId");
 
 var apiService = builder.AddProject<Projects.Marginalia_Api>("api")
     .WithReference(foundry)
@@ -32,7 +31,6 @@ var apiService = builder.AddProject<Projects.Marginalia_Api>("api")
     .WithReference(cosmos)
     .WithReference(documentsContainer)
     .WithReference(sessionsContainer)
-    .WithReference(suggestionsContainer)
     .WaitFor(reviewerDeployment)
     .WaitFor(cosmos)
     .WithEnvironment("AZURE_TENANT_ID", builder.Configuration["Azure:TenantId"] ?? "");
