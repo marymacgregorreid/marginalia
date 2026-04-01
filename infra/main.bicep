@@ -206,7 +206,7 @@ module foundryService './cognitive-services/accounts/main.bicep' = {
     kind: 'AIServices'
     location: location
     customSubDomainName: foundryCustomSubDomainName
-    disableLocalAuth: false
+    disableLocalAuth: true
     allowProjectManagement: true
     diagnosticSettings: [
       {
@@ -230,23 +230,6 @@ module foundryService './cognitive-services/accounts/main.bicep' = {
       systemAssigned: true
     }
     publicNetworkAccess: enablePublicNetworkAccess ? 'Enabled' : 'Disabled'
-    privateEndpoints: [
-      {
-        name: foundryPrivateEndpointName
-        subnetResourceId: virtualNetwork.outputs.subnetResourceIds[1] // privateEndpointSubnet
-        privateDnsZoneGroup: {
-          privateDnsZoneGroupConfigs: [
-            {
-              privateDnsZoneResourceId: foundryPrivateDnsZone.outputs.resourceId
-            }
-            {
-              privateDnsZoneResourceId: openAiPrivateDnsZone.outputs.resourceId
-            }
-          ]
-        }
-        service: 'account'
-      }
-    ]
     sku: 'S0'
     deployments: modelDeployments
     raiPolicies: [
@@ -312,6 +295,43 @@ module foundryRoleAssignments './core/security/role_foundry.bicep' = {
   params: {
     foundryName: foundryName
     roleAssignments: foundryRoleAssignmentsArray
+  }
+}
+
+// Private Endpoint for Foundry — created as a separate deployment after the foundryService module
+// completes to avoid a race condition where the account is still in "Accepted" state.
+module foundryPrivateEndpoint 'br/public:avm/res/network/private-endpoint:0.11.1' = {
+  name: 'foundry-private-endpoint-deployment-${resourceToken}'
+  scope: resourceGroup(resourceGroupName)
+  dependsOn: [
+    foundryRoleAssignments
+  ]
+  params: {
+    name: foundryPrivateEndpointName
+    location: location
+    tags: tags
+    subnetResourceId: virtualNetwork.outputs.subnetResourceIds[1] // privateEndpointSubnet
+    privateLinkServiceConnections: [
+      {
+        name: foundryPrivateEndpointName
+        properties: {
+          privateLinkServiceId: foundryService.outputs.resourceId
+          groupIds: [
+            'account'
+          ]
+        }
+      }
+    ]
+    privateDnsZoneGroup: {
+      privateDnsZoneGroupConfigs: [
+        {
+          privateDnsZoneResourceId: foundryPrivateDnsZone.outputs.resourceId
+        }
+        {
+          privateDnsZoneResourceId: openAiPrivateDnsZone.outputs.resourceId
+        }
+      ]
+    }
   }
 }
 
@@ -505,6 +525,9 @@ module containerAppCosmosDbRoles 'br/public:avm/res/document-db/database-account
   scope: resourceGroup(resourceGroupName)
   params: {
     name: cosmosDbAccountName
+    capabilitiesToAdd: [
+      'EnableServerless'
+    ]
     sqlRoleAssignments: [
       {
         principalId: containerApp.outputs.systemAssignedMIPrincipalId
@@ -523,6 +546,9 @@ module principalCosmosDbRoles 'br/public:avm/res/document-db/database-account:0.
   ]
   params: {
     name: cosmosDbAccountName
+    capabilitiesToAdd: [
+      'EnableServerless'
+    ]
     sqlRoleAssignments: [
       {
         principalId: principalId
