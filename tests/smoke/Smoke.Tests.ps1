@@ -56,6 +56,50 @@ Describe 'Backend API' {
         if (-not $healthy) {
             throw "Backend /health did not become healthy after $maxRetries attempts ($(($maxRetries * $retryDelay))s). URL: $ApiBaseUrl/health"
         }
+
+        # Wait for all dependencies to be ready using the /api/status endpoint.
+        # This checks Cosmos DB connectivity, managed identity, and AI Foundry in one call.
+        $statusReady = $false
+        $maxStatusRetries = 20
+        $statusRetryDelay = 10
+
+        for ($i = 1; $i -le $maxStatusRetries; $i++) {
+            $timestamp = (Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')
+            try {
+                $statusResponse = Invoke-WebRequest -Uri "$ApiBaseUrl/api/status" -UseBasicParsing -TimeoutSec 30
+                $statusJson = $statusResponse.Content | ConvertFrom-Json
+
+                Write-Host "[$timestamp] Status check (attempt $i/$maxStatusRetries):"
+                Write-Host "  Overall:          $($statusJson.overall)"
+                Write-Host "  Managed Identity: $($statusJson.managedIdentity.status) - $($statusJson.managedIdentity.message)"
+                Write-Host "  Cosmos DB:        $($statusJson.cosmosDb.status) - $($statusJson.cosmosDb.message)"
+                Write-Host "  AI Foundry:       $($statusJson.aiFoundry.status) - $($statusJson.aiFoundry.message)"
+
+                if ($statusJson.overall -eq 'Healthy') {
+                    $statusReady = $true
+                    break
+                }
+
+                # Log specific failures for diagnostics
+                if ($statusJson.cosmosDb.error) {
+                    Write-Host "  Cosmos DB error:  $($statusJson.cosmosDb.error)"
+                }
+                if ($statusJson.managedIdentity.error) {
+                    Write-Host "  MI error:         $($statusJson.managedIdentity.error)"
+                }
+
+                Start-Sleep -Seconds $statusRetryDelay
+            }
+            catch {
+                Write-Host "[$timestamp] Attempt $i/${maxStatusRetries}: /api/status request failed - $($_.Exception.Message)"
+                Start-Sleep -Seconds $statusRetryDelay
+            }
+        }
+
+        if (-not $statusReady) {
+            # Dump final status for diagnostics before failing
+            Write-Host "WARNING: Dependencies not fully healthy after $maxStatusRetries attempts"
+        }
     }
 
     It 'Health endpoint returns Healthy' {
@@ -69,34 +113,18 @@ Describe 'Backend API' {
         $response.StatusCode | Should -Be 200
     }
 
+    It 'Status endpoint reports all dependencies healthy' {
+        $response = Invoke-WebRequest -Uri "$ApiBaseUrl/api/status" -UseBasicParsing -TimeoutSec 30
+        $response.StatusCode | Should -Be 200
+
+        $status = $response.Content | ConvertFrom-Json
+        $status.overall | Should -Be 'Healthy'
+        $status.cosmosDb.status | Should -Be 'Healthy'
+        $status.managedIdentity.status | Should -Be 'Healthy'
+    }
+
     It 'Documents API returns 200' {
-        # Cosmos DB RBAC role propagation can take time after fresh deployment.
-        # Retry to allow DefaultAzureCredential + data-plane role to become active.
-        $maxRetries = 10
-        $retryDelay = 10
-        $lastError = $null
-
-        for ($i = 1; $i -le $maxRetries; $i++) {
-            try {
-                $response = Invoke-WebRequest -Uri "$ApiBaseUrl/api/documents" -UseBasicParsing -TimeoutSec 15
-                if ($response.StatusCode -eq 200) {
-                    $lastError = $null
-                    break
-                }
-            }
-            catch {
-                $lastError = $_
-                $statusCode = if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 'N/A' }
-                $timestamp = (Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')
-                Write-Host "[$timestamp] Attempt $i/${maxRetries}: /api/documents returned HTTP $statusCode, retrying in ${retryDelay}s..."
-                Start-Sleep -Seconds $retryDelay
-            }
-        }
-
-        if ($lastError) {
-            throw $lastError
-        }
-
+        $response = Invoke-WebRequest -Uri "$ApiBaseUrl/api/documents" -UseBasicParsing -TimeoutSec 15
         $response.StatusCode | Should -Be 200
     }
 }

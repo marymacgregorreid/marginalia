@@ -8,6 +8,8 @@ using Marginalia.Infrastructure.Services;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.AI;
 
+using Marginalia.Api.Controllers;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
@@ -85,6 +87,9 @@ else
 {
     builder.Services.AddSingleton<ISuggestionService, NoOpSuggestionService>();
 }
+
+// Status endpoint dependency checker
+builder.Services.AddSingleton<IDependencyChecker, DependencyChecker>();
 
 // Controllers + JSON config
 builder.Services.AddControllers()
