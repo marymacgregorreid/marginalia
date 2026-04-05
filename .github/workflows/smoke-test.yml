@@ -158,12 +158,12 @@ jobs:
               --tail 50 2>&1 || echo "Failed to retrieve system logs"
 
             echo ""
-            echo "=== Console Logs (last 100 entries) ==="
+            echo "=== Console Logs (last 500 entries) ==="
             az containerapp logs show \
               --name "$CONTAINER_APP_NAME" \
               --resource-group "$RESOURCE_GROUP" \
               --type console \
-              --tail 100 2>&1 || echo "Failed to retrieve console logs"
+              --tail 500 2>&1 || echo "Failed to retrieve console logs"
           } 2>&1 | tee "$DIAG_FILE"
 
       - name: Publish Smoke Test Results

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Azure.Identity;
 using Marginalia.Domain.Configuration;
 using Marginalia.Domain.Interfaces;
 using Marginalia.Infrastructure.Repositories;
@@ -27,6 +28,31 @@ builder.Services.Configure<LlmEndpointOptions>(
     builder.Configuration.GetSection(LlmEndpointOptions.SectionName));
 
 // Cosmos DB client
+// Wait for managed identity to become available before constructing the credential.
+// In ACA cold starts (scale from 0), the identity sidecar may not be ready immediately.
+// DefaultAzureCredential permanently caches credential unavailability, so we probe first
+// to ensure ManagedIdentityCredential will succeed when the CosmosClient uses it.
+if (!builder.Environment.IsDevelopment())
+{
+    var probeLogger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger("Startup");
+    const int maxProbes = 20;
+    for (var attempt = 1; attempt <= maxProbes; attempt++)
+    {
+        try
+        {
+            var probe = new ManagedIdentityCredential(ManagedIdentityId.SystemAssigned);
+            await probe.GetTokenAsync(new Azure.Core.TokenRequestContext(["https://cosmos.azure.com/.default"]));
+            probeLogger.LogInformation("Managed identity ready (attempt {Attempt}/{MaxProbes})", attempt, maxProbes);
+            break;
+        }
+        catch (Exception ex) when (attempt < maxProbes)
+        {
+            probeLogger.LogWarning("Managed identity not ready (attempt {Attempt}/{MaxProbes}): {Error}", attempt, maxProbes, ex.Message);
+            await Task.Delay(TimeSpan.FromSeconds(3));
+        }
+    }
+}
+
 builder.AddAzureCosmosClient("cosmos", configureClientOptions: options =>
 {
     options.UseSystemTextJsonSerializerWithOptions = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
