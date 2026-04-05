@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Marginalia.Api.Controllers;
+using Marginalia.Domain.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
