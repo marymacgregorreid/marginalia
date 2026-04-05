@@ -432,7 +432,7 @@ module cosmosDbAccount 'br/public:avm/res/document-db/database-account:0.19.0' =
 }
 
 // --------- CONTAINER APPS ENVIRONMENT ---------
-module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.10.0' = {
+module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.13.1' = {
   name: 'container-apps-environment-deployment-${resourceToken}'
   scope: resourceGroup(resourceGroupName)
   dependsOn: [
@@ -442,12 +442,29 @@ module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.10.
     name: containerAppsEnvironmentName
     location: location
     tags: tags
-    logAnalyticsWorkspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
+    appLogsConfiguration: {
+      destination: 'log-analytics'
+      logAnalyticsWorkspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
+    }
     zoneRedundant: false
     // VNET integration - attach to the ACA subnet
-    infrastructureSubnetId: virtualNetwork.outputs.subnetResourceIds[0] // acaSubnet
+    infrastructureSubnetResourceId: virtualNetwork.outputs.subnetResourceIds[0] // acaSubnet
     // internal: false means the environment remains publicly accessible (external ingress)
     internal: false
+    // Allow public network access so smoke tests and external clients can reach the container apps
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+// --------- ASPIRE DASHBOARD ---------
+module aspireDashboard 'aspire-dashboard.bicep' = {
+  name: 'aspire-dashboard-deployment-${resourceToken}'
+  scope: resourceGroup(resourceGroupName)
+  dependsOn: [
+    containerAppsEnvironment
+  ]
+  params: {
+    containerAppsEnvironmentName: containerAppsEnvironmentName
   }
 }
 
