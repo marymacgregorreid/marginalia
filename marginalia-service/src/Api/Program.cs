@@ -46,7 +46,6 @@ builder.Services.AddSingleton<ISessionRepository>(sp =>
     return new CosmosSessionRepository(cosmosClient, logger);
 });
 builder.Services.AddSingleton<IWordDocumentService, WordDocumentService>();
-builder.Services.AddSingleton<ISuggestionService, FoundrySuggestionService>();
 
 // Aspire Azure AI Inference integration — active when running under Aspire AppHost
 var aiConnectionString = builder.Configuration.GetConnectionString("ai-foundry");
@@ -54,6 +53,11 @@ if (!string.IsNullOrWhiteSpace(aiConnectionString))
 {
     builder.AddAzureChatCompletionsClient("ai-foundry")
         .AddChatClient("reviewer");
+    builder.Services.AddSingleton<ISuggestionService, FoundrySuggestionService>();
+}
+else
+{
+    builder.Services.AddSingleton<ISuggestionService, NoOpSuggestionService>();
 }
 
 // Controllers + JSON config
