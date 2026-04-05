@@ -70,7 +70,33 @@ Describe 'Backend API' {
     }
 
     It 'Documents API returns 200' {
-        $response = Invoke-WebRequest -Uri "$ApiBaseUrl/api/documents" -UseBasicParsing -TimeoutSec 10
+        # Cosmos DB RBAC role propagation can take time after fresh deployment.
+        # Retry to allow DefaultAzureCredential + data-plane role to become active.
+        $maxRetries = 10
+        $retryDelay = 10
+        $lastError = $null
+
+        for ($i = 1; $i -le $maxRetries; $i++) {
+            try {
+                $response = Invoke-WebRequest -Uri "$ApiBaseUrl/api/documents" -UseBasicParsing -TimeoutSec 15
+                if ($response.StatusCode -eq 200) {
+                    $lastError = $null
+                    break
+                }
+            }
+            catch {
+                $lastError = $_
+                $statusCode = if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 'N/A' }
+                $timestamp = (Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')
+                Write-Host "[$timestamp] Attempt $i/${maxRetries}: /api/documents returned HTTP $statusCode, retrying in ${retryDelay}s..."
+                Start-Sleep -Seconds $retryDelay
+            }
+        }
+
+        if ($lastError) {
+            throw $lastError
+        }
+
         $response.StatusCode | Should -Be 200
     }
 }

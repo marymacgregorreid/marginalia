@@ -416,13 +416,13 @@ module cosmosDbAccount 'br/public:avm/res/document-db/database-account:0.19.0' =
           {
             name: 'documents'
             paths: [
-              '/sessionId'
+              '/userId'
             ]
           }
           {
             name: 'sessions'
             paths: [
-              '/id'
+              '/userId'
             ]
           }
         ]

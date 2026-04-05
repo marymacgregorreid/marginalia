@@ -6,7 +6,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "17274547081537902544"
+      "templateHash": "2452785181605497481"
     }
   },
   "parameters": {
@@ -24296,13 +24296,13 @@
                   {
                     "name": "documents",
                     "paths": [
-                      "/sessionId"
+                      "/userId"
                     ]
                   },
                   {
                     "name": "sessions",
                     "paths": [
-                      "/id"
+                      "/userId"
                     ]
                   }
                 ]
