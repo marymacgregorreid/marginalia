@@ -66,10 +66,11 @@ Describe 'Backend API' {
         for ($i = 1; $i -le $maxStatusRetries; $i++) {
             $timestamp = (Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')
             try {
-                $statusResponse = Invoke-WebRequest -Uri "$ApiBaseUrl/api/status" -UseBasicParsing -TimeoutSec 30
+                # Use -SkipHttpErrorCheck so we can read the response body even on 503
+                $statusResponse = Invoke-WebRequest -Uri "$ApiBaseUrl/api/status" -UseBasicParsing -TimeoutSec 30 -SkipHttpErrorCheck
                 $statusJson = $statusResponse.Content | ConvertFrom-Json
 
-                Write-Host "[$timestamp] Status check (attempt $i/$maxStatusRetries):"
+                Write-Host "[$timestamp] Status check (attempt $i/$maxStatusRetries) - HTTP $($statusResponse.StatusCode):"
                 Write-Host "  Overall:          $($statusJson.overall)"
                 Write-Host "  Managed Identity: $($statusJson.managedIdentity.status) - $($statusJson.managedIdentity.message)"
                 Write-Host "  Cosmos DB:        $($statusJson.cosmosDb.status) - $($statusJson.cosmosDb.message)"
