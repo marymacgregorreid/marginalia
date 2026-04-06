@@ -29,36 +29,27 @@ if (Environment.GetEnvironmentVariable("FOUNDRY_MODEL_NAME") is { Length: > 0 } 
 builder.Services.Configure<LlmEndpointOptions>(
     builder.Configuration.GetSection(LlmEndpointOptions.SectionName));
 
-// Cosmos DB client
-// Wait for managed identity to become available before constructing the credential.
-// In ACA cold starts (scale from 0), the identity sidecar may not be ready immediately.
-// DefaultAzureCredential permanently caches credential unavailability, so we probe first
-// to ensure ManagedIdentityCredential will succeed when the CosmosClient uses it.
-if (!builder.Environment.IsDevelopment())
-{
-    var probeLogger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger("Startup");
-    const int maxProbes = 20;
-    for (var attempt = 1; attempt <= maxProbes; attempt++)
+// Cosmos DB client — use ManagedIdentityCredential directly in deployed environments.
+// DefaultAzureCredential permanently caches credential unavailability per the Azure Identity
+// SDK behavior. In ACA cold starts (scale from 0), the identity sidecar may not be ready on
+// the first credential probe, causing DAC to mark ManagedIdentityCredential as permanently
+// unavailable and fall through to VS/VSCode credentials which don't exist in a Linux container.
+// See: https://learn.microsoft.com/azure/container-apps/managed-identity?tabs=portal,dotnet
+builder.AddAzureCosmosClient("cosmos",
+    configureSettings: settings =>
     {
-        try
+        // In non-development environments (ACA), use ManagedIdentityCredential directly
+        // with system-assigned identity. DefaultAzureCredential is used in development
+        // where it picks up local credentials (Azure CLI, VS, etc.).
+        if (!builder.Environment.IsDevelopment())
         {
-            var probe = new ManagedIdentityCredential(ManagedIdentityId.SystemAssigned);
-            await probe.GetTokenAsync(new Azure.Core.TokenRequestContext(["https://cosmos.azure.com/.default"]));
-            probeLogger.LogInformation("Managed identity ready (attempt {Attempt}/{MaxProbes})", attempt, maxProbes);
-            break;
+            settings.Credential = new ManagedIdentityCredential(ManagedIdentityId.SystemAssigned);
         }
-        catch (Exception ex) when (attempt < maxProbes)
-        {
-            probeLogger.LogWarning("Managed identity not ready (attempt {Attempt}/{MaxProbes}): {Error}", attempt, maxProbes, ex.Message);
-            await Task.Delay(TimeSpan.FromSeconds(3));
-        }
-    }
-}
-
-builder.AddAzureCosmosClient("cosmos", configureClientOptions: options =>
-{
-    options.UseSystemTextJsonSerializerWithOptions = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
-});
+    },
+    configureClientOptions: options =>
+    {
+        options.UseSystemTextJsonSerializerWithOptions = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+    });
 
 // DI registrations — use Cosmos repositories
 builder.Services.AddSingleton<IDocumentRepository>(sp =>
