@@ -155,11 +155,20 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+// Exception handler must precede UseCors so that when re-dispatching the error
+// path the CORS middleware runs and adds Access-Control-Allow-Origin on error responses.
+app.UseExceptionHandler("/api/error");
 app.UseCors();
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 
 app.MapDefaultEndpoints();
+
+// Minimal error endpoint — reached via UseExceptionHandler re-dispatch.
+app.Map("/api/error", () =>
+    Results.Problem(
+        title: "An unexpected error occurred. Please try again.",
+        statusCode: StatusCodes.Status500InternalServerError));
 
 app.Run();

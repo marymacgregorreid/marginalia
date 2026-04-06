@@ -31,4 +31,40 @@ export default defineConfig({
     __OTEL_RESOURCE_ATTRIBUTES__: JSON.stringify(otelResourceAttributes),
     __OTEL_SERVICE_NAME__: JSON.stringify(otelServiceName),
   },
+  build: {
+    rolldownOptions: {
+      // Suppress known eval warning from @protobufjs/inquire (transitive OTel dependency).
+      // The library uses eval to dynamically require modules — this is intentional and safe.
+      onLog(level, log, defaultHandler) {
+        if (log.code === 'EVAL' && log.id?.includes('@protobufjs/inquire')) {
+          return
+        }
+        defaultHandler(level, log)
+      },
+      output: {
+        // Split large vendor bundles into separate chunks for better caching and load performance.
+        manualChunks: (id) => {
+          if (id.includes('node_modules/@opentelemetry') || id.includes('node_modules/@protobufjs')) {
+            return 'vendor-otel'
+          }
+          if (
+            id.includes('node_modules/react/') ||
+            id.includes('node_modules/react-dom/') ||
+            id.includes('node_modules/react-router')
+          ) {
+            return 'vendor-react'
+          }
+          if (id.includes('node_modules/radix-ui') || id.includes('node_modules/@radix-ui')) {
+            return 'vendor-radix'
+          }
+          if (id.includes('node_modules/lucide-react')) {
+            return 'vendor-icons'
+          }
+          if (id.includes('node_modules')) {
+            return 'vendor'
+          }
+        },
+      },
+    },
+  },
 })

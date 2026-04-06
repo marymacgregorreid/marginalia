@@ -219,11 +219,20 @@ public sealed class DocumentsController : ControllerBase
 
         var userGuidance = CombineGuidance(request?.UserInstructions, request?.ToneGuidance);
 
-        var suggestions = await _suggestionService.AnalyzeAsync(
-            document.Id,
-            document.Content,
-            userGuidance,
-            cancellationToken);
+        IReadOnlyList<Suggestion> suggestions;
+        try
+        {
+            suggestions = await _suggestionService.AnalyzeAsync(
+                document.Id,
+                document.Content,
+                userGuidance,
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Analysis failed for document: {DocumentId}, UserId: {UserId}", id, userId);
+            return StatusCode(StatusCodes.Status500InternalServerError, new { error = "Analysis failed. Please try again." });
+        }
 
         // Merge new suggestions with existing ones
         var updatedSuggestions = document.Suggestions.Concat(suggestions).ToList().AsReadOnly();

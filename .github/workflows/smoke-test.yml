@@ -179,7 +179,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: smoke-test-results
+          name: smoke-test-results-${{ inputs.ENVIRONMENT }}
           path: TestResults/smoke-tests.xml
           retention-days: 7
 
@@ -187,6 +187,6 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: aca-diagnostics
+          name: aca-diagnostics-${{ inputs.ENVIRONMENT }}
           path: TestResults/diagnostics/
           retention-days: 14
