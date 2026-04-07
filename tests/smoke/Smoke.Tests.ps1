@@ -3,7 +3,10 @@ param(
     [string]$ApiBaseUrl,
 
     [Parameter(Mandatory)]
-    [string]$FrontendBaseUrl
+    [string]$FrontendBaseUrl,
+
+    [Parameter(Mandatory = $false)]
+    [string]$AccessCode = $null
 )
 
 Describe 'Backend API' {
@@ -123,7 +126,11 @@ Describe 'Backend API' {
     }
 
     It 'Documents API returns 200' {
-        $response = Invoke-WebRequest -Uri "$ApiBaseUrl/api/documents" -UseBasicParsing -TimeoutSec 15
+        $headers = @{}
+        if (-not [string]::IsNullOrEmpty($AccessCode)) {
+            $headers['x-access-code'] = $AccessCode
+        }
+        $response = Invoke-WebRequest -Uri "$ApiBaseUrl/api/documents" -Headers $headers -UseBasicParsing -TimeoutSec 15
         $response.StatusCode | Should -Be 200
     }
 }
