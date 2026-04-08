@@ -1,10 +1,14 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Azure;
+using Azure.Core;
+using Marginalia.Domain.Configuration;
 using Marginalia.Domain.Interfaces;
 using Marginalia.Domain.Models;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Marginalia.Infrastructure.Services;
 
@@ -14,17 +18,28 @@ namespace Marginalia.Infrastructure.Services;
 /// </summary>
 public sealed class FoundrySuggestionService : ISuggestionService
 {
+    private const string AiScope = "https://ai.azure.com/.default";
+
     private readonly IChatClient _chatClient;
     private readonly ILogger<FoundrySuggestionService> _logger;
+    private readonly IOptionsMonitor<LlmEndpointOptions> _llmOptions;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly TokenCredential _tokenCredential;
 
     private const int ChunkSizeChars = 6000; // ~3 pages of text
 
     public FoundrySuggestionService(
         IChatClient chatClient,
-        ILogger<FoundrySuggestionService> logger)
+        ILogger<FoundrySuggestionService> logger,
+        IOptionsMonitor<LlmEndpointOptions> llmOptions,
+        IHttpClientFactory httpClientFactory,
+        TokenCredential tokenCredential)
     {
         _chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
         _logger = logger;
+        _llmOptions = llmOptions ?? throw new ArgumentNullException(nameof(llmOptions));
+        _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+        _tokenCredential = tokenCredential ?? throw new ArgumentNullException(nameof(tokenCredential));
     }
 
     public async Task<IReadOnlyList<Suggestion>> AnalyzeAsync(
@@ -61,8 +76,21 @@ public sealed class FoundrySuggestionService : ISuggestionService
             new(ChatRole.System, systemPrompt),
             new(ChatRole.User, userPrompt)
         };
-        var response = await _chatClient.GetResponseAsync(messages, cancellationToken: cancellationToken);
-        var responseContent = response.Text;
+        string? responseContent;
+        try
+        {
+            var response = await _chatClient.GetResponseAsync(messages, cancellationToken: cancellationToken);
+            responseContent = response.Text;
+        }
+        catch (RequestFailedException ex) when (
+            ex.Status == 400 &&
+            ex.Message.Contains("API version not supported", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning(ex,
+                "Foundry chat client API version was rejected by the endpoint. Falling back to OpenAI-compatible route.");
+
+            responseContent = await GetResponseFromOpenAiRouteAsync(messages, cancellationToken);
+        }
 
         if (string.IsNullOrWhiteSpace(responseContent))
         {
@@ -70,6 +98,127 @@ public sealed class FoundrySuggestionService : ISuggestionService
         }
 
         return ParseSuggestionsFromContent(documentId, responseContent, offset);
+    }
+
+    private async Task<string?> GetResponseFromOpenAiRouteAsync(
+        IReadOnlyList<ChatMessage> messages,
+        CancellationToken cancellationToken)
+    {
+        var endpoint = ResolveOpenAiChatCompletionsEndpoint();
+        var modelName = ResolveModelName();
+
+        var token = await _tokenCredential.GetTokenAsync(
+            new TokenRequestContext([AiScope]),
+            cancellationToken);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token.Token);
+
+        var payload = new
+        {
+            model = modelName,
+            messages = messages.Select(static message => new
+            {
+                role = message.Role.Value,
+                content = message.Text
+            })
+        };
+
+        request.Content = new StringContent(
+            JsonSerializer.Serialize(payload),
+            Encoding.UTF8,
+            "application/json");
+
+        var client = _httpClientFactory.CreateClient();
+        using var response = await client.SendAsync(request, cancellationToken);
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"OpenAI-compatible fallback failed with status {(int)response.StatusCode}: {content}");
+        }
+
+        return ExtractAssistantText(content);
+    }
+
+    private Uri ResolveOpenAiChatCompletionsEndpoint()
+    {
+        var metadataEndpoint = _chatClient.GetService<ChatClientMetadata>()?.ProviderUri;
+        var configuredEndpoint = _llmOptions.CurrentValue.Endpoint;
+        var endpointCandidate = metadataEndpoint?.ToString() ?? configuredEndpoint;
+
+        if (string.IsNullOrWhiteSpace(endpointCandidate) ||
+            !Uri.TryCreate(endpointCandidate, UriKind.Absolute, out var uri))
+        {
+            throw new InvalidOperationException("Unable to resolve AI endpoint for OpenAI-compatible fallback.");
+        }
+
+        var builder = new UriBuilder(uri.Scheme, uri.Host)
+        {
+            Path = "/openai/v1/chat/completions"
+        };
+
+        return builder.Uri;
+    }
+
+    private string ResolveModelName()
+    {
+        var metadataModel = _chatClient.GetService<ChatClientMetadata>()?.DefaultModelId;
+        var configuredModel = _llmOptions.CurrentValue.ModelName;
+        var modelName = metadataModel ?? configuredModel;
+
+        if (string.IsNullOrWhiteSpace(modelName))
+        {
+            throw new InvalidOperationException("Unable to resolve model name for OpenAI-compatible fallback.");
+        }
+
+        return modelName;
+    }
+
+    private static string? ExtractAssistantText(string responseBody)
+    {
+        using var document = JsonDocument.Parse(responseBody);
+
+        if (!document.RootElement.TryGetProperty("choices", out var choices) ||
+            choices.ValueKind != JsonValueKind.Array ||
+            choices.GetArrayLength() == 0)
+        {
+            return null;
+        }
+
+        var firstChoice = choices[0];
+        if (!firstChoice.TryGetProperty("message", out var message) ||
+            !message.TryGetProperty("content", out var content))
+        {
+            return null;
+        }
+
+        if (content.ValueKind == JsonValueKind.String)
+        {
+            return content.GetString();
+        }
+
+        if (content.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var sb = new StringBuilder();
+        foreach (var item in content.EnumerateArray())
+        {
+            if (!item.TryGetProperty("type", out var type) ||
+                !string.Equals(type.GetString(), "text", StringComparison.OrdinalIgnoreCase) ||
+                !item.TryGetProperty("text", out var text) ||
+                text.ValueKind != JsonValueKind.String)
+            {
+                continue;
+            }
+
+            sb.Append(text.GetString());
+        }
+
+        return sb.Length == 0 ? null : sb.ToString();
     }
 
     private static string BuildSystemPrompt(string? userGuidance)

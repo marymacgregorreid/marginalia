@@ -9,6 +9,7 @@
     <PackageReference Include="DocumentFormat.OpenXml" />
     <PackageReference Include="Microsoft.Azure.Cosmos" />
     <PackageReference Include="Microsoft.Extensions.AI.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Newtonsoft.Json" />
   </ItemGroup>

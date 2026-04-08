@@ -24,7 +24,7 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.0" />
     <!-- Azure / AI (Aspire client integrations) -->
-    <PackageVersion Include="Aspire.Azure.AI.Inference" Version="13.2.0-preview.1.26170.3" />
+    <PackageVersion Include="Aspire.Azure.AI.Inference" Version="13.2.1-preview.1.26180.6" />
     <PackageVersion Include="Azure.Identity" Version="1.19.0" />
     <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.2.0" />
     <!-- Testing -->
