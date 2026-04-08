@@ -50,7 +50,7 @@ For broad coding standards, naming conventions, and file organization, see [AGEN
 ### .NET Aspire Orchestration
 
 - The `AppHost` registers all services with resource references and `WaitFor()` dependencies.
-- Cosmos DB containers use `/userId` partition key: `documents`, `sessions`, `suggestions`.
+- Cosmos DB containers use `/userId` partition key: `documents`, `sessions`.
 - The frontend is registered as a Vite app with `pnpm` package manager and external HTTP endpoints.
 - Service defaults configure OpenTelemetry (logging, metrics, tracing), health checks (`/health`, `/alive`), service discovery, and HTTP resilience handlers.
 

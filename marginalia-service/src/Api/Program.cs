@@ -78,6 +78,25 @@ builder.Services.AddSingleton<ISessionRepository>(sp =>
 builder.Services.AddSingleton<IWordDocumentService, WordDocumentService>();
 builder.Services.AddHttpClient();
 
+// Named HttpClient for LLM fallback — the standard resilience handler's 30s
+// total timeout is too short for large-document chat completions. Configure
+// a dedicated handler with extended timeouts for this client.
+builder.Services.AddHttpClient("foundry-llm", client =>
+{
+    client.Timeout = TimeSpan.FromMinutes(5);
+}).ConfigureAdditionalHttpMessageHandlers((handlers, _) =>
+{
+    // Remove the default resilience handlers added by ConfigureHttpClientDefaults
+    // so we can apply our own timeout configuration below.
+    handlers.Clear();
+}).AddStandardResilienceHandler(options =>
+{
+    options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(5);
+    options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(4);
+    options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(10);
+    options.Retry.MaxRetryAttempts = 2;
+});
+
 // Aspire Azure AI Inference integration — active when running under Aspire AppHost.
 // In non-development environments (ACA), use ManagedIdentityCredential directly
 // to avoid the same DefaultAzureCredential cold-start caching issue as Cosmos DB.

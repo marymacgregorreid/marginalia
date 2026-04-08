@@ -515,6 +515,10 @@ module containerApp 'br/public:avm/res/app/container-app:0.12.0' = {
             value: 'Endpoint=https://${foundryCustomSubDomainName}.services.ai.azure.com/api/projects/${defaultProjectName}'
           }
           {
+            name: 'FOUNDRY_MODEL_NAME'
+            value: modelDeployments[0].name
+          }
+          {
             name: 'ConnectionStrings__cosmos'
             value: 'AccountEndpoint=${cosmosDbAccount.outputs.endpoint}'
           }

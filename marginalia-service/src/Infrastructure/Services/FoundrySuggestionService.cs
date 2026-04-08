@@ -1,7 +1,6 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Azure;
 using Azure.Core;
 using Marginalia.Domain.Configuration;
 using Marginalia.Domain.Interfaces;
@@ -76,21 +75,12 @@ public sealed class FoundrySuggestionService : ISuggestionService
             new(ChatRole.System, systemPrompt),
             new(ChatRole.User, userPrompt)
         };
-        string? responseContent;
-        try
-        {
-            var response = await _chatClient.GetResponseAsync(messages, cancellationToken: cancellationToken);
-            responseContent = response.Text;
-        }
-        catch (RequestFailedException ex) when (
-            ex.Status == 400 &&
-            ex.Message.Contains("API version not supported", StringComparison.OrdinalIgnoreCase))
-        {
-            _logger.LogWarning(ex,
-                "Foundry chat client API version was rejected by the endpoint. Falling back to OpenAI-compatible route.");
 
-            responseContent = await GetResponseFromOpenAiRouteAsync(messages, cancellationToken);
-        }
+        // Use the OpenAI-compatible route directly. The Azure.AI.Inference SDK
+        // sends an API version that the Foundry APIM gateway does not support,
+        // so we bypass IChatClient for chat completions and call the endpoint
+        // via its standard /openai/v1/chat/completions route.
+        var responseContent = await GetResponseFromOpenAiRouteAsync(messages, cancellationToken);
 
         if (string.IsNullOrWhiteSpace(responseContent))
         {
@@ -129,7 +119,7 @@ public sealed class FoundrySuggestionService : ISuggestionService
             Encoding.UTF8,
             "application/json");
 
-        var client = _httpClientFactory.CreateClient();
+        var client = _httpClientFactory.CreateClient("foundry-llm");
         using var response = await client.SendAsync(request, cancellationToken);
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
 

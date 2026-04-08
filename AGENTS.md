@@ -99,12 +99,12 @@ az bicep lint --file infra/main.bicep
 
 ### Bicep (Infrastructure)
 
-| Element         | Convention                          | Example                            |
-| --------------- | ----------------------------------- | ---------------------------------- |
-| File name       | kebab-case `.bicep`                 | `main.bicep`, `role_foundry.bicep` |
-| Parameter       | camelCase                           | `environmentName`, `location`      |
-| Variable        | camelCase                           | `resourceToken`, `tags`            |
-| Resource naming | `${abbreviation}${environmentName}` | `log-${environmentName}`           |
+| Element         | Convention                          | Example                                  |
+| --------------- | ----------------------------------- | ---------------------------------------- |
+| File name       | kebab-case or snake_case `.bicep`   | `main.bicep`, `role_foundry.bicep`       |
+| Parameter       | camelCase                           | `environmentName`, `location`            |
+| Variable        | camelCase                           | `resourceToken`, `tags`                  |
+| Resource naming | `${abbreviation}${environmentName}` | `log-${environmentName}`                 |
 
 ## File Organization
 
@@ -152,14 +152,15 @@ Test files mirror the `src/` structure under a `tests/` directory at the project
 1. **Options pattern** — configuration via strongly-typed options classes (e.g., `LlmEndpointOptions`) registered in DI.
 1. **Sealed types** — all controllers, models, records, and service implementations should be `sealed`.
 1. **Custom hooks** — React state and side effects are encapsulated in custom hooks (`useDocuments`, `useAnalysis`, `useSuggestions`). Hooks return an object with state properties and action methods.
-1. **Service layer** — the React app uses a centralized API client (`api.ts`) with typed service modules (`documentService.ts`, `suggestionService.ts`). API calls flow through `apiGet`, `apiPost`, `apiPut`, `apiPostFile`, `apiGetBlob` helpers.
-1. **Multi-tenancy** — all data is partitioned by `userId`. The API extracts user ID from the `X-User-Id` header.
+1. **Service layer** — the React app uses a centralized API client (`api.ts`) with typed service modules. See copilot-instructions.md for the full list of typed helpers.
+1. **Multi-tenancy** — all data is partitioned by `userId` extracted from the `X-User-Id` request header.
 
 ## Testing Standards
 
 ### .NET
 
 - **Framework**: MSTest v4 with `[TestClass]`, `[TestMethod]`, `[TestCategory("Unit")]`
+- **Runner**: Microsoft.Testing.Platform (MTP), configured in `global.json`
 - **Assertions**: FluentAssertions (`.Should().Be()`, `.Should().HaveCount()`)
 - **Mocking**: NSubstitute
 - **Parallelism**: `[assembly: Parallelize(Scope = ExecutionScope.MethodLevel)]`

@@ -1,8 +1,9 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-var foundry = builder.AddAzureAIFoundry("ai-foundry");
+var foundry = builder.AddFoundry("foundry");
+var foundryProject = foundry.AddProject("ai-foundry");
 
-var reviewerDeployment = foundry.AddDeployment(
+var reviewerDeployment = foundryProject.AddModelDeployment(
     "reviewer",
     builder.Configuration["MicrosoftFoundry:modelName"] ?? "gpt-5.3-chat",
     builder.Configuration["MicrosoftFoundry:modelVersion"] ?? "2026-03-03",
@@ -26,7 +27,7 @@ var documentsContainer = cosmosDb.AddContainer("documents", "/userId");
 var sessionsContainer = cosmosDb.AddContainer("sessions", "/userId");
 
 var apiService = builder.AddProject<Projects.Marginalia_Api>("api")
-    .WithReference(foundry)
+    .WithReference(foundryProject)
     .WithReference(reviewerDeployment)
     .WithReference(cosmos)
     .WithReference(documentsContainer)
