@@ -487,7 +487,8 @@ module containerApp 'br/public:avm/res/app/container-app:0.22.0' = {
         name: 'api'
         image: containerImage
         resources: {
-          cpu: '0.5'
+          // AVM pattern: use json() for fractional CPU until native float support is available in Bicep.
+          cpu: json('0.5')
           memory: '1Gi'
         }
         env: [
@@ -557,7 +558,7 @@ var containerAppFoundryRoleAssignments = [
   {
     roleDefinitionIdOrName: 'Cognitive Services OpenAI User'
     principalType: 'ServicePrincipal'
-    principalId: containerApp.outputs.systemAssignedMIPrincipalId
+    principalId: containerApp.outputs.?systemAssignedMIPrincipalId
   }
 ]
 
@@ -579,7 +580,7 @@ module containerAppCosmosDbRoles './core/security/role_cosmosdb.bicep' = {
     cosmosDbAccountName: cosmosDbAccountName
     sqlRoleAssignments: [
       {
-        principalId: containerApp.outputs.systemAssignedMIPrincipalId
+        principalId: containerApp.outputs.?systemAssignedMIPrincipalId
         roleDefinitionId: '00000000-0000-0000-0000-000000000002'
       }
     ]

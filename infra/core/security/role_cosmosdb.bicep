@@ -12,15 +12,15 @@ resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2024-11-15' exis
 }
 
 resource roleAssignments 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-11-15' = [
-  for (assignment, index) in sqlRoleAssignments: {
+  for (assignment, index) in sqlRoleAssignments: if (!empty(assignment.?principalId)) {
     parent: cosmosDbAccount
     name: guid(
       '${cosmosDbAccount.id}/sqlRoleDefinitions/${assignment.roleDefinitionId}',
-      assignment.principalId,
+      assignment.?principalId!,
       cosmosDbAccount.id
     )
     properties: {
-      principalId: assignment.principalId
+      principalId: assignment.?principalId!
       roleDefinitionId: '${cosmosDbAccount.id}/sqlRoleDefinitions/${assignment.roleDefinitionId}'
       scope: cosmosDbAccount.id
     }
@@ -33,8 +33,8 @@ resource roleAssignments 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignmen
 
 @export()
 type sqlRoleAssignmentType = {
-  @description('Required. The principal ID to assign the role to.')
-  principalId: string
+  @description('Optional. The principal ID to assign the role to. Entries with empty values are ignored.')
+  principalId: string?
 
   @description('Required. The Cosmos DB built-in role definition GUID (e.g., 00000000-0000-0000-0000-000000000002 for Data Contributor).')
   roleDefinitionId: string

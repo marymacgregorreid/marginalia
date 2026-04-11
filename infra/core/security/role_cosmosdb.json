@@ -6,7 +6,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "7923705612398609832"
+      "templateHash": "5970998754236857442"
     },
     "name": "Cosmos DB SQL Role Assignments",
     "description": "Creates SQL data-plane role assignments on an existing Cosmos DB account without redeploying the account resource."
@@ -17,8 +17,9 @@
       "properties": {
         "principalId": {
           "type": "string",
+          "nullable": true,
           "metadata": {
-            "description": "Required. The principal ID to assign the role to."
+            "description": "Optional. The principal ID to assign the role to. Entries with empty values are ignored."
           }
         },
         "roleDefinitionId": {
@@ -62,11 +63,12 @@
         "name": "roleAssignments",
         "count": "[length(parameters('sqlRoleAssignments'))]"
       },
+      "condition": "[not(empty(tryGet(parameters('sqlRoleAssignments')[copyIndex()], 'principalId')))]",
       "type": "Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments",
       "apiVersion": "2024-11-15",
-      "name": "[format('{0}/{1}', parameters('cosmosDbAccountName'), guid(format('{0}/sqlRoleDefinitions/{1}', resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName')), parameters('sqlRoleAssignments')[copyIndex()].roleDefinitionId), parameters('sqlRoleAssignments')[copyIndex()].principalId, resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))))]",
+      "name": "[format('{0}/{1}', parameters('cosmosDbAccountName'), guid(format('{0}/sqlRoleDefinitions/{1}', resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName')), parameters('sqlRoleAssignments')[copyIndex()].roleDefinitionId), tryGet(parameters('sqlRoleAssignments')[copyIndex()], 'principalId'), resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))))]",
       "properties": {
-        "principalId": "[parameters('sqlRoleAssignments')[copyIndex()].principalId]",
+        "principalId": "[tryGet(parameters('sqlRoleAssignments')[copyIndex()], 'principalId')]",
         "roleDefinitionId": "[format('{0}/sqlRoleDefinitions/{1}', resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName')), parameters('sqlRoleAssignments')[copyIndex()].roleDefinitionId)]",
         "scope": "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))]"
       }
