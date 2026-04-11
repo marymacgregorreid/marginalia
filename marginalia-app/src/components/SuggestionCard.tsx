@@ -12,6 +12,7 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronUp,
+  Undo2,
 } from "lucide-react";
 import type { Suggestion, SuggestionStatus } from "@/types";
 import { cn, mutedText } from "@/lib/utils";
@@ -32,9 +33,9 @@ interface SuggestionCardProps {
 
 const statusBadge = {
   Pending: { variant: "default" as const, icon: AlertCircle, className: "bg-linear-to-r from-amber-500/90 to-orange-500/90 text-white border-0 shadow-sm" },
-  Accepted: { variant: "secondary" as const, icon: Check, className: "bg-linear-to-r from-emerald-500/15 to-teal-500/15 text-emerald-700 dark:from-emerald-500/25 dark:to-teal-500/25 dark:text-emerald-300 border-0 shadow-sm" },
-  Rejected: { variant: "destructive" as const, icon: X, className: "bg-linear-to-r from-rose-500/15 to-pink-500/15 text-rose-700 dark:from-rose-500/25 dark:to-pink-500/25 dark:text-rose-300 border-0 shadow-sm" },
-  Modified: { variant: "outline" as const, icon: Pencil, className: "bg-linear-to-r from-sky-500/15 to-indigo-500/15 text-sky-700 dark:from-sky-500/25 dark:to-indigo-500/25 dark:text-sky-300 border-0 shadow-sm" },
+  Accepted: { variant: "secondary" as const, icon: Check, className: "bg-linear-to-r from-emerald-500/90 to-teal-500/90 text-white border-0 shadow-sm" },
+  Rejected: { variant: "destructive" as const, icon: X, className: "bg-linear-to-r from-rose-500/90 to-pink-500/90 text-white border-0 shadow-sm" },
+  Modified: { variant: "outline" as const, icon: Pencil, className: "bg-linear-to-r from-sky-500/90 to-indigo-500/90 text-white border-0 shadow-sm" },
 };
 
 const statusNumberColors = {
@@ -57,12 +58,24 @@ export function SuggestionCard({
   const [isEditing, setIsEditing] = useState(false);
   const [modifiedText, setModifiedText] = useState(suggestion.proposedChange);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [userCollapsed, setUserCollapsed] = useState(false);
+
+  // Reset the user-collapsed override whenever this suggestion is newly selected.
+  // Using React's render-time derived state pattern to avoid setState-in-effect lint errors.
+  const [prevIsActive, setPrevIsActive] = useState(isActive);
+  if (isActive !== prevIsActive) {
+    setPrevIsActive(isActive);
+    if (isActive) setUserCollapsed(false);
+  }
 
   useEffect(() => {
     if (isActive && cardRef.current) {
       cardRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   }, [isActive]);
+
+  // Open when explicitly expanded or auto-opened by selection, unless user manually collapsed.
+  const isOpen = (isExpanded || isActive) && !userCollapsed;
 
   const badge = statusBadge[suggestion.status];
   const BadgeIcon = badge.icon;
@@ -83,6 +96,10 @@ export function SuggestionCard({
       setIsEditing(true);
     }
   }, [isEditing, modifiedText, onStatusChange, suggestion.id]);
+
+  const handleRevertToPending = useCallback(() => {
+    onStatusChange(suggestion.id, "Pending");
+  }, [onStatusChange, suggestion.id]);
 
   const handleClick = useCallback(() => {
     onClick(suggestion.id);
@@ -110,7 +127,7 @@ export function SuggestionCard({
         }}
         tabIndex={0}
         role="button"
-        aria-expanded={isExpanded}
+        aria-expanded={isOpen}
       >
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -133,11 +150,17 @@ export function SuggestionCard({
             className="h-6 w-6 p-0"
             onClick={(e: React.MouseEvent) => {
               e.stopPropagation();
-              setIsExpanded(!isExpanded);
+              if (isOpen) {
+                setIsExpanded(false);
+                setUserCollapsed(true);
+              } else {
+                setIsExpanded(true);
+                setUserCollapsed(false);
+              }
             }}
-            aria-label={isExpanded ? "Collapse suggestion" : "Expand suggestion"}
+              aria-label={isOpen ? "Collapse suggestion" : "Expand suggestion"}
           >
-            {isExpanded ? (
+            {isOpen ? (
               <ChevronUp className="h-4 w-4" />
             ) : (
               <ChevronDown className="h-4 w-4" />
@@ -149,7 +172,7 @@ export function SuggestionCard({
         </p>
       </CardHeader>
 
-      {isExpanded && (
+      {isOpen && (
         <>
           <Separator />
           <CardContent className="pt-3">
@@ -220,6 +243,20 @@ export function SuggestionCard({
                   Cancel
                 </Button>
               )}
+            </CardFooter>
+          )}
+
+          {(suggestion.status === "Accepted" || suggestion.status === "Rejected" || suggestion.status === "Modified") && (
+            <CardFooter className="gap-2 pt-0">
+              <Button
+                size="sm"
+                variant="default"
+                className="gap-1 bg-linear-to-r from-amber-500/90 to-orange-500/90 text-white border-0 shadow-sm hover:from-amber-500 hover:to-orange-500"
+                onClick={handleRevertToPending}
+              >
+                <Undo2 className="h-3 w-3" aria-hidden="true" />
+                Revert to Pending
+              </Button>
             </CardFooter>
           )}
         </>

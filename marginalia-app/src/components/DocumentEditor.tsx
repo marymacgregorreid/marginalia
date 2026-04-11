@@ -1,5 +1,10 @@
 import { useMemo, useCallback, useRef, type ReactNode } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { SuggestionMarker } from "./SuggestionHighlight";
 import type { Document, Suggestion } from "@/types";
 
@@ -19,7 +24,7 @@ const statusHighlightClass = {
   Accepted:
     "bg-emerald-200/70 dark:bg-emerald-400/20 border-b-2 border-emerald-500 dark:border-emerald-400",
   Rejected:
-    "bg-rose-200/70 dark:bg-rose-400/20 border-b-2 border-rose-400 dark:border-rose-400 line-through opacity-70",
+    "bg-rose-200/70 dark:bg-rose-400/20 border-b-2 border-rose-400 dark:border-rose-400",
   Modified:
     "bg-sky-200/70 dark:bg-sky-400/20 border-b-2 border-sky-500 dark:border-sky-400",
 } as const;
@@ -219,28 +224,48 @@ export function DocumentEditor({
         (s) => s.id === hoveredSuggestionId
       );
 
+      // For accepted suggestions, show the proposed change instead of original text
+      const displayText =
+        primary.status === "Accepted" ? primary.proposedChange : segment.text;
+
+      const highlightSpan = (
+        <span
+          className={`${highlightClass} cursor-pointer rounded-sm px-0.5 transition-all duration-200 inline ${
+            isActive
+              ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-sm"
+              : isHovered
+                ? "ring-1 ring-primary/40 ring-offset-1 ring-offset-background"
+                : ""
+          }`}
+          onClick={() => onSuggestionClick(primary.id)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onSuggestionClick(primary.id);
+            }
+          }}
+          role="mark"
+          tabIndex={0}
+        >
+          {displayText}
+        </span>
+      );
+
       return (
         <span key={index}>
-          <span
-            className={`${highlightClass} cursor-pointer rounded-sm px-0.5 transition-all duration-200 inline ${
-              isActive
-                ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-sm"
-                : isHovered
-                  ? "ring-1 ring-primary/40 ring-offset-1 ring-offset-background"
-                  : ""
-            }`}
-            onClick={() => onSuggestionClick(primary.id)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onSuggestionClick(primary.id);
-              }
-            }}
-            role="mark"
-            tabIndex={0}
-          >
-            {segment.text}
-          </span>
+          {primary.status === "Accepted" ? (
+            <Tooltip>
+              <TooltipTrigger asChild>{highlightSpan}</TooltipTrigger>
+              <TooltipContent side="top" className="max-w-sm">
+                <p className="text-xs">
+                  <span className="font-medium">Original: </span>
+                  {segment.text}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            highlightSpan
+          )}
           {segment.endingMarkers.map((marker) => (
             <SuggestionMarker
               key={marker.suggestion.id}

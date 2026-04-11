@@ -76,6 +76,21 @@ export function useDocument() {
     setState({ document: doc, isLoading: false, error: null });
   }, []);
 
+  const renameDocument = useCallback(async (title: string) => {
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+    try {
+      const id = state.document?.id;
+      if (!id) throw new Error("No document loaded");
+      const updated = await documentService.renameDocument(id, title);
+      setState({ document: updated, isLoading: false, error: null });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to rename document";
+      setState((prev) => ({ ...prev, isLoading: false, error: message }));
+      throw err;
+    }
+  }, [state.document?.id]);
+
   const clearDocument = useCallback(() => {
     setState({ document: null, isLoading: false, error: null });
   }, []);
@@ -88,6 +103,7 @@ export function useDocument() {
     pasteContent,
     loadDocument,
     updateDocument,
+    renameDocument,
     clearDocument,
   };
 }

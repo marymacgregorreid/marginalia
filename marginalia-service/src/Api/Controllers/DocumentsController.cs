@@ -290,6 +290,40 @@ public sealed class DocumentsController : ControllerBase
     }
 
     /// <summary>
+    /// Update the title of a document.
+    /// </summary>
+    [HttpPut("{id}/title")]
+    public async Task<ActionResult<Document>> UpdateTitle(
+        string id,
+        [FromBody] UpdateDocumentTitleRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Title))
+        {
+            return BadRequest(new { error = "Title cannot be empty." });
+        }
+
+        var userId = GetUserId(Request);
+        var document = await _documentRepository.GetByIdAsync(userId, id, cancellationToken);
+        if (document is null)
+        {
+            _logger.LogWarning("Document not found for title update: {DocumentId}, UserId: {UserId}", id, userId);
+            return NotFound(new { error = $"Document '{id}' not found." });
+        }
+
+        var updatedDocument = document with
+        {
+            Title = request.Title,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        await _documentRepository.SaveAsync(updatedDocument, cancellationToken);
+
+        _logger.LogInformation("Document title updated: {DocumentId}, Title: {Title}, UserId: {UserId}", id, request.Title, userId);
+
+        return Ok(updatedDocument);
+    }
+
+    /// <summary>
     /// Export the document as a .docx file with accepted suggestions applied.
     /// </summary>
     [HttpGet("{id}/export")]

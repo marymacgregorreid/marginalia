@@ -2,15 +2,18 @@ import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn, gradientText } from "@/lib/utils";
+import { useTheme } from "@/hooks/useTheme";
 import {
   BookOpen,
   CircleUser,
   FileText,
   Home,
   LogIn,
+  Moon,
   PlusCircle,
   Settings,
   Sparkles,
+  Sun,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -53,6 +56,7 @@ export function AppHeader({
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
   const hasDocument = !!(documentId && filename);
 
   const isHome = location.pathname === "/";
@@ -149,8 +153,26 @@ export function AppHeader({
         )}
       </div>
 
-      {/* Right: User Menu */}
+      {/* Right: Theme toggle + User Menu */}
       <div className="flex items-center gap-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              onClick={toggleTheme}
+            >
+              {theme === "dark" ? (
+                <Sun className="h-5 w-5" aria-hidden="true" />
+              ) : (
+                <Moon className="h-5 w-5" aria-hidden="true" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{theme === "dark" ? "Light mode" : "Dark mode"}</TooltipContent>
+        </Tooltip>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

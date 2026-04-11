@@ -10,7 +10,7 @@
  * @see https://aspire.dev/dashboard/enable-browser-telemetry/
  */
 
-import { trace, metrics, type Span } from '@opentelemetry/api';
+import { trace, metrics, SpanStatusCode, type Span } from '@opentelemetry/api';
 import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
@@ -197,5 +197,30 @@ export const meter = metrics.getMeter(SERVICE_NAME);
 /** Record a duration (ms) on a span and end it. */
 export function endSpanWithDuration(span: Span, startMs: number): void {
   span.setAttribute('duration_ms', performance.now() - startMs);
+  span.end();
+}
+
+interface ApiErrorTelemetry {
+  method: string;
+  path: string;
+  statusCode?: number;
+  message: string;
+}
+
+/**
+ * Emit an explicit error span for handled API failures so they appear in dashboard traces.
+ */
+export function recordApiErrorTelemetry(error: ApiErrorTelemetry): void {
+  const span = tracer.startSpan(`api.${error.method.toLowerCase()}.error`);
+  span.setAttribute('http.request.method', error.method);
+  span.setAttribute('url.path', error.path);
+  span.setAttribute('error.type', 'api_error');
+
+  if (typeof error.statusCode === 'number') {
+    span.setAttribute('http.response.status_code', error.statusCode);
+  }
+
+  span.recordException(new Error(error.message));
+  span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
   span.end();
 }

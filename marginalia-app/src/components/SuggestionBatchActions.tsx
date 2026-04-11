@@ -40,16 +40,16 @@ export function SuggestionBatchActions({
           <Clock className="h-3 w-3" aria-hidden="true" />
           {counts.Pending} pending
         </Badge>
-        <Badge variant="secondary" className="bg-linear-to-r from-emerald-500/15 to-teal-500/15 text-emerald-700 dark:from-emerald-500/25 dark:to-teal-500/25 dark:text-emerald-300 border-0 shadow-sm pl-1.5">
+        <Badge variant="secondary" className="bg-linear-to-r from-emerald-500/90 to-teal-500/90 text-white border-0 shadow-sm pl-1.5">
           <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
           {counts.Accepted} accepted
         </Badge>
-        <Badge variant="secondary" className="bg-linear-to-r from-rose-500/15 to-pink-500/15 text-rose-700 dark:from-rose-500/25 dark:to-pink-500/25 dark:text-rose-300 border-0 shadow-sm pl-1.5">
+        <Badge variant="secondary" className="bg-linear-to-r from-rose-500/90 to-pink-500/90 text-white border-0 shadow-sm pl-1.5">
           <Ban className="h-3 w-3" aria-hidden="true" />
           {counts.Rejected} rejected
         </Badge>
         {counts.Modified > 0 && (
-          <Badge variant="secondary" className="bg-linear-to-r from-sky-500/15 to-indigo-500/15 text-sky-700 dark:from-sky-500/25 dark:to-indigo-500/25 dark:text-sky-300 border-0 shadow-sm pl-1.5">
+          <Badge variant="secondary" className="bg-linear-to-r from-sky-500/90 to-indigo-500/90 text-white border-0 shadow-sm pl-1.5">
             <PenLine className="h-3 w-3" aria-hidden="true" />
             {counts.Modified} modified
           </Badge>

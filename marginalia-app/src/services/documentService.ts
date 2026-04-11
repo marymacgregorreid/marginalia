@@ -6,7 +6,7 @@ import type {
   AnalyzeRequest,
   Suggestion,
 } from "@/types";
-import { apiGet, apiPost, apiPostFile, apiGetBlob } from "./api";
+import { apiGet, apiPost, apiPostFile, apiGetBlob, apiPut } from "./api";
 
 export async function listDocuments(): Promise<DocumentListResponse> {
   return apiGet<DocumentListResponse>("/api/documents");
@@ -36,4 +36,11 @@ export async function exportDocument(
   documentId: string
 ): Promise<Blob> {
   return apiGetBlob(`/api/documents/${documentId}/export`);
+}
+
+export async function renameDocument(
+  documentId: string,
+  title: string
+): Promise<Document> {
+  return apiPut<Document>(`/api/documents/${documentId}/title`, { title });
 }

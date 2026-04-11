@@ -125,11 +125,23 @@ export function EditorPage() {
     }
   }, [doc.document, suggestions]);
 
+  const handleRename = useCallback(
+    async (title: string) => {
+      try {
+        await doc.renameDocument(title);
+        toast.success("Title updated");
+      } catch {
+        toast.error("Failed to update title");
+      }
+    },
+    [doc]
+  );
+
   const error = doc.error ?? analysis.error;
 
   const editorContent = doc.document ? (
     <div className="flex flex-col h-full">
-      <DocumentHeader document={doc.document} />
+      <DocumentHeader document={doc.document} onRename={handleRename} />
       <DocumentEditor
         document={doc.document}
         suggestions={suggestions.filteredSuggestions}
