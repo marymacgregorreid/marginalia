@@ -14,6 +14,7 @@ import {
   Settings,
   Sparkles,
   Sun,
+  Trash2,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -41,6 +42,7 @@ interface AppHeaderProps {
   healthResult: LlmHealthResult | null;
   onCheckHealth: () => Promise<void>;
   onAnalyze?: () => void;
+  onDelete?: () => void;
 }
 
 export function AppHeader({
@@ -52,6 +54,7 @@ export function AppHeader({
   healthResult,
   onCheckHealth,
   onAnalyze,
+  onDelete,
 }: AppHeaderProps) {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const navigate = useNavigate();
@@ -129,7 +132,7 @@ export function AppHeader({
                 <TooltipTrigger asChild>
                   <Button
                     size="sm"
-                    className="gap-2"
+                    className="gap-2 w-24 justify-center"
                     onClick={onAnalyze}
                     aria-label="Analyze manuscript"
                   >
@@ -149,6 +152,23 @@ export function AppHeader({
               </TooltipTrigger>
               <TooltipContent>Export to Word document</TooltipContent>
             </Tooltip>
+
+            {onDelete && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    className="gap-2 w-24 justify-center bg-linear-to-r from-violet-600 to-red-600 hover:from-violet-700 hover:to-red-700 text-white shadow-sm"
+                    onClick={onDelete}
+                    aria-label="Delete manuscript"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    <span className="hidden md:inline">Delete</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Delete manuscript</TooltipContent>
+              </Tooltip>
+            )}
           </>
         )}
       </div>

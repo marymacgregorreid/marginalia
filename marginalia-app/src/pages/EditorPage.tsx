@@ -11,6 +11,7 @@ import { DocumentHeader } from "@/components/DocumentHeader";
 import { DocumentEditor } from "@/components/DocumentEditor";
 import { SuggestionPanel } from "@/components/SuggestionPanel";
 import { AnalysisDialog } from "@/components/AnalysisDialog";
+import { DeleteConfirmationDialog } from "@/components/DeleteConfirmationDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import type { SuggestionStatus } from "@/types";
@@ -24,6 +25,7 @@ export function EditorPage() {
   const analysis = useAnalysis();
   const llmConfig = useLlmConfig();
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   useEffect(() => {
     if (documentId && !doc.document) {
@@ -137,6 +139,18 @@ export function EditorPage() {
     [doc]
   );
 
+  const handleDelete = useCallback(async () => {
+    try {
+      await doc.deleteDocument();
+      suggestions.setSuggestions([]);
+      setIsDeleteOpen(false);
+      toast.success("Document deleted");
+      navigate("/");
+    } catch {
+      toast.error("Failed to delete document");
+    }
+  }, [doc, suggestions, navigate]);
+
   const error = doc.error ?? analysis.error;
 
   const editorContent = doc.document ? (
@@ -189,6 +203,7 @@ export function EditorPage() {
         healthResult={llmConfig.healthResult}
         onCheckHealth={llmConfig.checkHealth}
         onAnalyze={doc.document ? () => setIsAnalysisOpen(true) : undefined}
+        onDelete={doc.document ? () => setIsDeleteOpen(true) : undefined}
       />
 
       {error && (
@@ -211,6 +226,16 @@ export function EditorPage() {
           isAnalyzing={analysis.isAnalyzing}
           progress={analysis.progress}
           onAnalyze={handleAnalyze}
+        />
+      )}
+
+      {doc.document && (
+        <DeleteConfirmationDialog
+          open={isDeleteOpen}
+          onOpenChange={setIsDeleteOpen}
+          onConfirm={() => void handleDelete()}
+          isDeleting={doc.isLoading}
+          documentTitle={doc.document.title || doc.document.filename}
         />
       )}
     </div>

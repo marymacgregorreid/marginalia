@@ -37,7 +37,7 @@ export function ExportControls({
   return (
     <Button
       size="sm"
-      className="gap-2"
+      className="gap-2 w-24 justify-center"
       onClick={handleExport}
       disabled={isExporting}
     >
@@ -46,7 +46,7 @@ export function ExportControls({
       ) : (
         <Download className="h-4 w-4" aria-hidden="true" />
       )}
-      {isExporting ? "Exporting…" : "Export Word"}
+      {isExporting ? "Exporting…" : "Export"}
     </Button>
   );
 }

@@ -3,6 +3,7 @@ import {
   apiGet,
   apiPost,
   apiPut,
+  apiDelete,
   apiPostFile,
   apiGetBlob,
   setApiBaseUrl,
@@ -10,7 +11,7 @@ import {
   setAccessCode,
   getAccessCode,
 } from '@/services/api'
-import { uploadDocument, pasteDocument, analyzeDocument } from '@/services/documentService'
+import { uploadDocument, pasteDocument, analyzeDocument, deleteDocument } from '@/services/documentService'
 import { getLlmConfig, checkHealth, getAccessStatus } from '@/services/configService'
 import { updateSuggestionStatus } from '@/services/suggestionService'
 
@@ -146,6 +147,39 @@ describe('API base client', () => {
         expect.objectContaining({
           method: 'PUT',
           body: JSON.stringify({ endpoint: 'https://new.com' }),
+        })
+      )
+    })
+  })
+
+  describe('apiDelete', () => {
+    it('makes DELETE request to correct URL', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 204,
+        json: () => Promise.reject(new Error('no body')),
+      })
+
+      await apiDelete('/api/documents/doc-1')
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:5279/api/documents/doc-1',
+        expect.objectContaining({ method: 'DELETE' })
+      )
+    })
+
+    it('throws ApiError on non-ok response', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        json: () => Promise.reject(new Error('no body')),
+      })
+
+      await expect(apiDelete('/api/documents/nonexistent')).rejects.toEqual(
+        expect.objectContaining({
+          message: 'Not Found',
+          statusCode: 404,
         })
       )
     })
@@ -290,6 +324,21 @@ describe('Document service', () => {
         method: 'POST',
         body: expect.stringContaining('more narrative'),
       })
+    )
+  })
+
+  it('deleteDocument sends DELETE to correct endpoint', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      json: () => Promise.reject(new Error('no body')),
+    })
+
+    await deleteDocument('doc-1')
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://localhost:5279/api/documents/doc-1',
+      expect.objectContaining({ method: 'DELETE' })
     )
   })
 })

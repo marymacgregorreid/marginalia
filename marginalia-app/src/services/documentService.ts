@@ -6,7 +6,7 @@ import type {
   AnalyzeRequest,
   Suggestion,
 } from "@/types";
-import { apiGet, apiPost, apiPostFile, apiGetBlob, apiPut } from "./api";
+import { apiGet, apiPost, apiPostFile, apiGetBlob, apiPut, apiDelete } from "./api";
 
 export async function listDocuments(): Promise<DocumentListResponse> {
   return apiGet<DocumentListResponse>("/api/documents");
@@ -43,4 +43,8 @@ export async function renameDocument(
   title: string
 ): Promise<Document> {
   return apiPut<Document>(`/api/documents/${documentId}/title`, { title });
+}
+
+export async function deleteDocument(documentId: string): Promise<void> {
+  return apiDelete<void>(`/api/documents/${documentId}`);
 }

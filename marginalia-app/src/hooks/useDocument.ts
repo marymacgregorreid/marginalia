@@ -91,6 +91,21 @@ export function useDocument() {
     }
   }, [state.document?.id]);
 
+  const deleteDocument = useCallback(async () => {
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+    try {
+      const id = state.document?.id;
+      if (!id) throw new Error("No document loaded");
+      await documentService.deleteDocument(id);
+      setState({ document: null, isLoading: false, error: null });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to delete document";
+      setState((prev) => ({ ...prev, isLoading: false, error: message }));
+      throw err;
+    }
+  }, [state.document?.id]);
+
   const clearDocument = useCallback(() => {
     setState({ document: null, isLoading: false, error: null });
   }, []);
@@ -104,6 +119,7 @@ export function useDocument() {
     loadDocument,
     updateDocument,
     renameDocument,
+    deleteDocument,
     clearDocument,
   };
 }

@@ -6,6 +6,7 @@ export {
   getDocument,
   analyzeDocument,
   exportDocument,
+  deleteDocument,
 } from "./documentService";
 export {
   getSuggestions,

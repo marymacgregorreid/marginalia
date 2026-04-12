@@ -324,6 +324,27 @@ public sealed class DocumentsController : ControllerBase
     }
 
     /// <summary>
+    /// Delete a document by ID.
+    /// </summary>
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken)
+    {
+        var userId = GetUserId(Request);
+        var document = await _documentRepository.GetByIdAsync(userId, id, cancellationToken);
+        if (document is null)
+        {
+            _logger.LogWarning("Document not found for deletion: {DocumentId}, UserId: {UserId}", id, userId);
+            return NotFound(new { error = $"Document '{id}' not found." });
+        }
+
+        await _documentRepository.DeleteAsync(userId, id, cancellationToken);
+
+        _logger.LogInformation("Document deleted: {DocumentId}, UserId: {UserId}", id, userId);
+
+        return NoContent();
+    }
+
+    /// <summary>
     /// Export the document as a .docx file with accepted suggestions applied.
     /// </summary>
     [HttpGet("{id}/export")]

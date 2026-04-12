@@ -142,6 +142,25 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
   }
 }
 
+export async function apiDelete<T>(path: string): Promise<T> {
+  try {
+    const response = await fetch(`${baseUrl}${path}`, {
+      method: "DELETE",
+      headers: buildHeaders("application/json"),
+    });
+    return handleResponse<T>(response, "DELETE", path);
+  } catch (error) {
+    if (error instanceof TypeError) {
+      recordApiErrorTelemetry({
+        method: "DELETE",
+        path,
+        message: error.message,
+      });
+    }
+    throw error;
+  }
+}
+
 export async function apiPostFile<T>(
   path: string,
   file: File,
