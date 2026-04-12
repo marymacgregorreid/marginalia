@@ -1,7 +1,9 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Sparkles } from "lucide-react";
 import { SuggestionCard } from "./SuggestionCard";
 import { SuggestionBatchActions } from "./SuggestionBatchActions";
 import { cn, mutedText } from "@/lib/utils";
@@ -33,6 +35,8 @@ interface SuggestionPanelProps {
   onAcceptAll: () => Promise<void>;
   onRejectAll: () => Promise<void>;
   onReanalyze?: (paragraphId: string) => void;
+  isUnanalyzed?: boolean;
+  onAnalyze?: () => void;
 }
 
 export function SuggestionPanel({
@@ -50,6 +54,8 @@ export function SuggestionPanel({
   onAcceptAll,
   onRejectAll,
   onReanalyze,
+  isUnanalyzed,
+  onAnalyze,
 }: SuggestionPanelProps) {
   const handleStatusChange = useCallback(
     (id: string, status: SuggestionStatus, modifiedText?: string) => {
@@ -58,27 +64,63 @@ export function SuggestionPanel({
     [onStatusChange]
   );
 
+  const paragraphRuns = useMemo(() => {
+    const runs: Suggestion[][] = [];
+
+    for (const suggestion of filteredSuggestions) {
+      const currentRun = runs[runs.length - 1];
+
+      if (
+        currentRun == null ||
+        currentRun[0]?.paragraphId !== suggestion.paragraphId
+      ) {
+        runs.push([suggestion]);
+        continue;
+      }
+
+      currentRun.push(suggestion);
+    }
+
+    return runs;
+  }, [filteredSuggestions]);
+
   return (
     <div className="flex flex-col h-full border-l bg-card/80 backdrop-blur-sm" role="complementary" aria-label="Suggestions panel">
       <div className="p-4 pb-2">
         <h3 className="text-sm font-semibold mb-3 text-center">Suggestions</h3>
-        <SuggestionBatchActions
-          counts={counts}
-          onAcceptAll={onAcceptAll}
-          onRejectAll={onRejectAll}
-          isDisabled={false}
-        />
+        {!isUnanalyzed && (
+          <SuggestionBatchActions
+            counts={counts}
+            onAcceptAll={onAcceptAll}
+            onRejectAll={onRejectAll}
+            isDisabled={false}
+          />
+        )}
       </div>
 
       <Separator />
 
-      <Tabs
-        value={filter}
-        onValueChange={(val: string) =>
-          onFilterChange(val as SuggestionStatus | "All")
-        }
-        className="flex-1 flex flex-col"
-      >
+      {isUnanalyzed ? (
+        <div className="flex flex-col items-center justify-center flex-1 gap-4 p-8 text-center">
+          <Sparkles className="h-8 w-8 text-violet-400/50" aria-hidden="true" />
+          <p className={cn(mutedText, "text-sm max-w-[180px]")}>
+            Analyze the manuscript to generate suggestions
+          </p>
+          {onAnalyze && (
+            <Button onClick={onAnalyze} className="gap-2">
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+              Analyze
+            </Button>
+          )}
+        </div>
+      ) : (
+        <Tabs
+          value={filter}
+          onValueChange={(val: string) =>
+            onFilterChange(val as SuggestionStatus | "All")
+          }
+          className="flex-1 flex flex-col"
+        >
         <TabsList className="mx-4 mt-2 grid grid-cols-5 h-9 justify-center">
           <TabsTrigger value="All" className="text-xs data-[state=active]:shadow-sm">
             All ({counts.total})
@@ -105,25 +147,46 @@ export function SuggestionPanel({
                   No {filter === "All" ? "" : filter.toLowerCase()} suggestions
                 </p>
               ) : (
-                filteredSuggestions.map((suggestion) => (
-                  <SuggestionCard
-                    key={suggestion.id}
-                    suggestion={suggestion}
-                    number={suggestionNumbers.get(suggestion.id)}
-                    isActive={suggestion.id === activeSuggestionId}
-                    isHovered={suggestion.id === hoveredSuggestionId}
-                    paragraphs={paragraphs}
-                    onStatusChange={handleStatusChange}
-                    onClick={onSuggestionClick}
-                    onHoverChange={onSuggestionHover}
-                    onReanalyze={onReanalyze}
-                  />
-                ))
+                paragraphRuns.map((run) => {
+                  const hasSiblingSuggestions = run.length > 1;
+
+                  return (
+                    <div
+                      key={run.map((suggestion) => suggestion.id).join("-")}
+                      className={cn("relative", hasSiblingSuggestions && "pl-4")}
+                    >
+                      {hasSiblingSuggestions && (
+                        <div
+                          data-testid="paragraph-suggestion-connector"
+                          className="absolute left-0 top-8 bottom-8 w-2 rounded-full bg-muted-foreground/20"
+                          aria-hidden="true"
+                        />
+                      )}
+                      <div className={cn("flex flex-col", hasSiblingSuggestions && "gap-3")}>
+                        {run.map((suggestion) => (
+                          <SuggestionCard
+                            key={suggestion.id}
+                            suggestion={suggestion}
+                            number={suggestionNumbers.get(suggestion.id)}
+                            isActive={suggestion.id === activeSuggestionId}
+                            isHovered={suggestion.id === hoveredSuggestionId}
+                            paragraphs={paragraphs}
+                            onStatusChange={handleStatusChange}
+                            onClick={onSuggestionClick}
+                            onHoverChange={onSuggestionHover}
+                            onReanalyze={onReanalyze}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </ScrollArea>
         </TabsContent>
       </Tabs>
+      )}
     </div>
   );
 }

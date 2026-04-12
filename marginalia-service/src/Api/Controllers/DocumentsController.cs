@@ -356,8 +356,21 @@ public sealed class DocumentsController : ControllerBase
             return StatusCode(StatusCodes.Status500InternalServerError, new { error = "Analysis failed. Please try again." });
         }
 
-        // Additive: append new suggestions to existing ones
-        var allSuggestions = document.Suggestions.Concat(newSuggestions).ToList().AsReadOnly();
+        // Reset previously accepted/modified suggestions for this paragraph back to pending
+        // so the newly generated suggestions become the current options to review.
+        var normalizedExistingSuggestions = document.Suggestions
+            .Select(s =>
+                s.ParagraphId == paragraphId &&
+                (s.Status == SuggestionStatus.Accepted || s.Status == SuggestionStatus.Modified)
+                    ? s with { Status = SuggestionStatus.Pending }
+                    : s)
+            .ToList();
+
+        // Additive: append new suggestions to existing ones.
+        var allSuggestions = normalizedExistingSuggestions
+            .Concat(newSuggestions)
+            .ToList()
+            .AsReadOnly();
 
         var updatedDocument = document with
         {
@@ -376,7 +389,7 @@ public sealed class DocumentsController : ControllerBase
 
     /// <summary>
     /// Update a suggestion's status (accept, reject, modify).
-    /// When accepting a suggestion, other pending suggestions targeting the same paragraph
+    /// When accepting a suggestion, all other suggestions targeting the same paragraph
     /// are automatically rejected (exclusive acceptance).
     /// </summary>
     [HttpPut("{id}/suggestions/{suggestionId}")]
@@ -415,8 +428,10 @@ public sealed class DocumentsController : ControllerBase
                     return updated;
                 }
 
-                // Exclusive acceptance: auto-reject other pending suggestions on the same paragraph
-                if (isAccepting && s.ParagraphId == suggestion.ParagraphId && s.Status == SuggestionStatus.Pending)
+                // Exclusive acceptance: auto-reject all other suggestions on the same paragraph.
+                if (isAccepting &&
+                    s.ParagraphId == suggestion.ParagraphId &&
+                    s.Status != SuggestionStatus.Rejected)
                 {
                     return s with { Status = SuggestionStatus.Rejected };
                 }

@@ -1,7 +1,13 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, Hash, Pencil, Check, X } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { FileText, Hash, Pencil, Check, X, Sparkles, Trash2 } from "lucide-react";
+import { ExportControls } from "./ExportControls";
 import { getAcceptedSuggestionsCharacterCount } from "@/lib/suggestionUtils";
 import type { Document, Suggestion } from "@/types";
 
@@ -9,9 +15,11 @@ interface DocumentHeaderProps {
   document: Document;
   suggestions: Suggestion[];
   onRename?: (title: string) => Promise<void>;
+  onAnalyze?: () => void;
+  onDelete?: () => void;
 }
 
-export function DocumentHeader({ document, suggestions, onRename }: DocumentHeaderProps) {
+export function DocumentHeader({ document, suggestions, onRename, onAnalyze, onDelete }: DocumentHeaderProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -127,6 +135,47 @@ export function DocumentHeader({ document, suggestions, onRename }: DocumentHead
           <span className="font-medium">With accepted</span>
           <span>{withSuggestionsCharacterCount.toLocaleString()}</span>
         </span>
+        {onAnalyze && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                className="gap-2"
+                onClick={onAnalyze}
+                aria-label="Analyze manuscript"
+              >
+                <Sparkles className="h-4 w-4" aria-hidden="true" />
+                Analyze
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Run AI analysis on manuscript</TooltipContent>
+          </Tooltip>
+        )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <ExportControls documentId={document.id} filename={document.filename} />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>Export to Word document</TooltipContent>
+        </Tooltip>
+        {onDelete && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="gap-2"
+                onClick={onDelete}
+                aria-label="Delete manuscript"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                Delete
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Delete manuscript</TooltipContent>
+          </Tooltip>
+        )}
       </div>
     </div>
   );

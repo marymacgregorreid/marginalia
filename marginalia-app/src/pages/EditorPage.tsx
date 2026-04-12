@@ -18,6 +18,7 @@ import { AlertCircle } from "lucide-react";
 import type { Document, SuggestionStatus } from "@/types";
 import { toast } from "sonner";
 import * as documentService from "@/services/documentService";
+import * as suggestionService from "@/services/suggestionService";
 
 export function EditorPage() {
   const { documentId } = useParams<{ documentId: string }>();
@@ -103,13 +104,10 @@ export function EditorPage() {
             userGuidance ? { userGuidance } : undefined
           );
 
-          const updatedSuggestions = [
-            ...suggestions.suggestions.filter((s) => s.paragraphId !== paragraphId),
-            ...newSuggestions,
-          ];
-
-          // Replace existing suggestions for this paragraph with new ones
-          suggestions.setSuggestions(updatedSuggestions);
+          // Refresh the full list so paragraph-level status transitions from
+          // the backend are reflected before selecting the new suggestion.
+          const refreshedSuggestions = await suggestionService.getSuggestions(doc.document.id);
+          suggestions.setSuggestions(refreshedSuggestions);
 
           // Keep the newly generated suggestion selected so its card remains expanded.
           suggestions.setActiveSuggestion(newSuggestions[0]?.id ?? null);
@@ -288,6 +286,8 @@ export function EditorPage() {
         document={doc.document}
         suggestions={suggestions.suggestions}
         onRename={handleRename}
+        onAnalyze={() => setIsAnalysisOpen(true)}
+        onDelete={() => setIsDeleteOpen(true)}
       />
       <DocumentEditor
         document={doc.document}
@@ -324,21 +324,19 @@ export function EditorPage() {
       onAcceptAll={handleAcceptAll}
       onRejectAll={handleRejectAll}
       onReanalyze={handleReanalyzeParagraph}
+      isUnanalyzed={doc.document.status === "Draft"}
+      onAnalyze={() => setIsAnalysisOpen(true)}
     />
   ) : null;
 
   return (
     <div className="flex flex-col h-screen">
       <AppHeader
-        documentId={doc.document?.id}
-        filename={doc.document?.filename}
         llmConfig={llmConfig.config}
         isConfigLoading={llmConfig.isLoading}
         isCheckingHealth={llmConfig.isCheckingHealth}
         healthResult={llmConfig.healthResult}
         onCheckHealth={llmConfig.checkHealth}
-        onAnalyze={doc.document ? () => setIsAnalysisOpen(true) : undefined}
-        onDelete={doc.document ? () => setIsDeleteOpen(true) : undefined}
       />
 
       {error && (

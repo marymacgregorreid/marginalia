@@ -50,9 +50,20 @@ export function DocumentEditor({
     (paragraph: Paragraph): ReactNode => {
       const paragraphSuggestions = suggestionsByParagraph.get(paragraph.id) ?? [];
 
-      // Find the primary suggestion (first pending, or first by number)
+      // Pick the primary suggestion using status priority so the paragraph highlight
+      // reflects the most significant outcome: Accepted > Modified > Pending > Rejected.
+      const statusPriority: Record<string, number> = {
+        Accepted: 0,
+        Modified: 1,
+        Pending: 2,
+        Rejected: 3,
+      };
       const primary = paragraphSuggestions.length > 0
         ? paragraphSuggestions.reduce((best, s) => {
+            const bestPriority = statusPriority[best.status] ?? Infinity;
+            const sPriority = statusPriority[s.status] ?? Infinity;
+            if (sPriority !== bestPriority) return sPriority < bestPriority ? s : best;
+            // Tie-break by suggestion number (ascending)
             const bestNum = suggestionNumbers.get(best.id) ?? Infinity;
             const sNum = suggestionNumbers.get(s.id) ?? Infinity;
             return sNum < bestNum ? s : best;

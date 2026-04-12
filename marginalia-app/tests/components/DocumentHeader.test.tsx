@@ -1,7 +1,13 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { DocumentHeader } from '@/components/DocumentHeader'
 import type { Document, Suggestion } from '@/types'
+
+function renderWithTooltip(ui: React.ReactElement) {
+  return render(<TooltipProvider>{ui}</TooltipProvider>)
+}
 
 const createDocument = (overrides?: Partial<Document>): Document => ({
   id: 'doc-1',
@@ -33,7 +39,7 @@ describe('DocumentHeader', () => {
     const document = createDocument()
     const suggestions = [createSuggestion({ status: 'Accepted' })]
 
-    render(<DocumentHeader document={document} suggestions={suggestions} />)
+    renderWithTooltip(<DocumentHeader document={document} suggestions={suggestions} />)
 
     expect(screen.getByText(/Original/)).toBeInTheDocument()
     expect(screen.getByText('11')).toBeInTheDocument()
@@ -45,10 +51,80 @@ describe('DocumentHeader', () => {
     const document = createDocument()
     const suggestions = [createSuggestion({ status: 'Pending' })]
 
-    render(<DocumentHeader document={document} suggestions={suggestions} />)
+    renderWithTooltip(<DocumentHeader document={document} suggestions={suggestions} />)
 
     expect(screen.getByText(/Original/)).toBeInTheDocument()
     expect(screen.getByText(/With accepted/)).toBeInTheDocument()
     expect(screen.getAllByText('11')).toHaveLength(2)
+  })
+
+  describe('action buttons', () => {
+    it('shows Analyze button when onAnalyze is provided', () => {
+      renderWithTooltip(
+        <DocumentHeader
+          document={createDocument()}
+          suggestions={[]}
+          onAnalyze={vi.fn()}
+        />
+      )
+
+      expect(screen.getByRole('button', { name: /analyze manuscript/i })).toBeInTheDocument()
+    })
+
+    it('does not show Analyze button when onAnalyze is not provided', () => {
+      renderWithTooltip(<DocumentHeader document={createDocument()} suggestions={[]} />)
+
+      expect(screen.queryByRole('button', { name: /analyze manuscript/i })).not.toBeInTheDocument()
+    })
+
+    it('calls onAnalyze when Analyze button is clicked', async () => {
+      const user = userEvent.setup()
+      const onAnalyze = vi.fn()
+      renderWithTooltip(
+        <DocumentHeader
+          document={createDocument()}
+          suggestions={[]}
+          onAnalyze={onAnalyze}
+        />
+      )
+
+      await user.click(screen.getByRole('button', { name: /analyze manuscript/i }))
+
+      expect(onAnalyze).toHaveBeenCalledOnce()
+    })
+
+    it('shows Delete button when onDelete is provided', () => {
+      renderWithTooltip(
+        <DocumentHeader
+          document={createDocument()}
+          suggestions={[]}
+          onDelete={vi.fn()}
+        />
+      )
+
+      expect(screen.getByRole('button', { name: /delete manuscript/i })).toBeInTheDocument()
+    })
+
+    it('does not show Delete button when onDelete is not provided', () => {
+      renderWithTooltip(<DocumentHeader document={createDocument()} suggestions={[]} />)
+
+      expect(screen.queryByRole('button', { name: /delete manuscript/i })).not.toBeInTheDocument()
+    })
+
+    it('calls onDelete when Delete button is clicked', async () => {
+      const user = userEvent.setup()
+      const onDelete = vi.fn()
+      renderWithTooltip(
+        <DocumentHeader
+          document={createDocument()}
+          suggestions={[]}
+          onDelete={onDelete}
+        />
+      )
+
+      await user.click(screen.getByRole('button', { name: /delete manuscript/i }))
+
+      expect(onDelete).toHaveBeenCalledOnce()
+    })
   })
 })

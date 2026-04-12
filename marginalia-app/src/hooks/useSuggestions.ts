@@ -95,13 +95,17 @@ export function useSuggestions() {
           suggestionId,
           { status, userSteeringInput: modifiedText }
         );
+
+        // Refresh from server so sibling status transitions (for example,
+        // paragraph-level exclusive acceptance) are reflected in local state.
+        const refreshedSuggestions = await suggestionService.getSuggestions(documentId);
+
         setState((prev) => ({
           ...prev,
-          suggestions: prev.suggestions.map((s) =>
-            s.id === suggestionId ? updated : s
-          ),
+          suggestions: refreshedSuggestions,
         }));
-        return updated;
+
+        return refreshedSuggestions.find((s) => s.id === suggestionId) ?? updated;
       } catch (err) {
         const message =
           err instanceof Error

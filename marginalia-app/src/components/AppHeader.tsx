@@ -6,15 +6,12 @@ import { useTheme } from "@/hooks/useTheme";
 import {
   BookOpen,
   CircleUser,
-  FileText,
   Home,
   LogIn,
   Moon,
   PlusCircle,
   Settings,
-  Sparkles,
   Sun,
-  Trash2,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -30,41 +27,30 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LlmConfigDialog } from "./LlmConfigDialog";
-import { ExportControls } from "./ExportControls";
 import type { LlmConfig, LlmHealthResult } from "@/types";
 
 interface AppHeaderProps {
-  documentId?: string;
-  filename?: string;
   llmConfig: LlmConfig;
   isConfigLoading: boolean;
   isCheckingHealth: boolean;
   healthResult: LlmHealthResult | null;
   onCheckHealth: () => Promise<void>;
-  onAnalyze?: () => void;
-  onDelete?: () => void;
 }
 
 export function AppHeader({
-  documentId,
-  filename,
   llmConfig,
   isConfigLoading,
   isCheckingHealth,
   healthResult,
   onCheckHealth,
-  onAnalyze,
-  onDelete,
 }: AppHeaderProps) {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
-  const hasDocument = !!(documentId && filename);
 
   const isHome = location.pathname === "/";
   const isNew = location.pathname === "/new";
-  const isEditor = location.pathname.startsWith("/editor/");
 
   const tabBase =
     "inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer";
@@ -109,69 +95,7 @@ export function AppHeader({
             <PlusCircle className="h-4 w-4" aria-hidden="true" />
             <span className="hidden md:inline">New</span>
           </button>
-
-          {hasDocument && (
-            <button
-              role="tab"
-              aria-selected={isEditor}
-              className={`${tabBase} ${isEditor ? tabActive : tabInactive}`}
-              onClick={() => navigate(`/editor/${documentId}`)}
-            >
-              <FileText className="h-4 w-4" aria-hidden="true" />
-              <span className="truncate max-w-[200px] hidden sm:inline" title={filename}>{filename}</span>
-            </button>
-          )}
         </nav>
-
-        {hasDocument && (
-          <>
-            <Separator orientation="vertical" className="h-6 mx-1" />
-
-            {onAnalyze && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    className="gap-2 w-24 justify-center"
-                    onClick={onAnalyze}
-                    aria-label="Analyze manuscript"
-                  >
-                    <Sparkles className="h-4 w-4" aria-hidden="true" />
-                    <span className="hidden md:inline">Analyze</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Run AI analysis on manuscript</TooltipContent>
-              </Tooltip>
-            )}
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <ExportControls documentId={documentId} filename={filename} />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>Export to Word document</TooltipContent>
-            </Tooltip>
-
-            {onDelete && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="gap-2 w-24 justify-center"
-                    onClick={onDelete}
-                    aria-label="Delete manuscript"
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    <span className="hidden md:inline">Delete</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Delete manuscript</TooltipContent>
-              </Tooltip>
-            )}
-          </>
-        )}
       </div>
 
       {/* Right: Theme toggle + User Menu */}
