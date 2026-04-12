@@ -9,6 +9,7 @@ interface UseAnalysisState {
   showConfirmReplaceDialog: boolean;
   acceptedSuggestions: Suggestion[];
   pendingCount: number;
+  rejectedCount: number;
 }
 
 export function useAnalysis() {
@@ -19,6 +20,7 @@ export function useAnalysis() {
     showConfirmReplaceDialog: false,
     acceptedSuggestions: [],
     pendingCount: 0,
+    rejectedCount: 0,
   });
 
   const analyze = useCallback(
@@ -60,14 +62,22 @@ export function useAnalysis() {
         normalizedStatus === "analyzed" || document.suggestions.length > 0;
 
       if (hasExistingAnalysis) {
-        const accepted = document.suggestions.filter((s) => s.status === "Accepted");
-        const nonAccepted = document.suggestions.filter((s) => s.status !== "Accepted");
+        const accepted = document.suggestions.filter(
+          (s) => s.status === "Accepted" || s.status === "Modified"
+        );
+        const pending = document.suggestions.filter(
+          (s) => s.status === "Pending"
+        );
+        const rejected = document.suggestions.filter(
+          (s) => s.status === "Rejected"
+        );
 
         setState((prev) => ({
           ...prev,
           showConfirmReplaceDialog: true,
           acceptedSuggestions: accepted,
-          pendingCount: nonAccepted.length,
+          pendingCount: pending.length,
+          rejectedCount: rejected.length,
         }));
         return "confirm";
       }
@@ -90,6 +100,7 @@ export function useAnalysis() {
       showConfirmReplaceDialog: false,
       acceptedSuggestions: [],
       pendingCount: 0,
+      rejectedCount: 0,
     }));
   }, []);
 
@@ -104,6 +115,7 @@ export function useAnalysis() {
     showConfirmReplaceDialog: state.showConfirmReplaceDialog,
     acceptedSuggestions: state.acceptedSuggestions,
     pendingCount: state.pendingCount,
+    rejectedCount: state.rejectedCount,
     analyze,
     initiateAnalysis,
     confirmReplaceAndAnalyze,

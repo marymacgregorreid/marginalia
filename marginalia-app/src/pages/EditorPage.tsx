@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import type { Document, SuggestionStatus } from "@/types";
 import { toast } from "sonner";
+import { mergeAcceptedSuggestionsToParagraphs } from "@/lib/suggestionUtils";
 import * as documentService from "@/services/documentService";
 import * as suggestionService from "@/services/suggestionService";
 
@@ -127,16 +128,33 @@ export function EditorPage() {
 
       // Full-document analysis
       try {
+        // Snapshot the current paragraphs and suggestions before the API call
+        // so we can merge only accepted suggestions on the frontend.
+        const preParagraphs = doc.document.paragraphs;
+        const preSuggestions = suggestions.suggestions;
+
         const analysisResult = await analysis.analyze({
           documentId: doc.document.id,
           userGuidance,
         });
-        suggestions.setSuggestions(analysisResult);
+
+        // Merge only accepted/modified suggestions into the paragraph text.
+        // This is computed on the frontend so we know exactly which suggestions
+        // are applied — pending and rejected suggestions are left out.
+        const mergedParagraphs = mergeAcceptedSuggestionsToParagraphs(
+          preParagraphs,
+          preSuggestions,
+        );
+
         doc.updateDocument({
           ...doc.document,
-          status: "Analyzed",
+          paragraphs: mergedParagraphs,
           suggestions: analysisResult,
+          status: "Analyzed",
         });
+        suggestions.setSuggestions(analysisResult);
+        suggestions.setParagraphs(mergedParagraphs);
+
         toast.success(`Found ${analysisResult.length} suggestions`);
       } catch {
         toast.error("Analysis failed — check your model configuration");
@@ -382,6 +400,7 @@ export function EditorPage() {
           onOpenChange={handleCancelReplaceAnalysis}
           acceptedSuggestions={analysis.acceptedSuggestions}
           pendingCount={analysis.pendingCount}
+          rejectedCount={analysis.rejectedCount}
           onConfirm={() => void handleConfirmReplaceAnalysis()}
         />
       )}

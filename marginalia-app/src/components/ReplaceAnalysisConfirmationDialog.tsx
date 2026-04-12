@@ -11,7 +11,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { mutedText } from "@/lib/utils";
 import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 
 interface ReplaceAnalysisConfirmationDialogProps {
@@ -19,7 +18,47 @@ interface ReplaceAnalysisConfirmationDialogProps {
   onOpenChange: (open: boolean) => void;
   acceptedSuggestions: Suggestion[];
   pendingCount: number;
+  rejectedCount: number;
   onConfirm: () => void;
+}
+
+/**
+ * Builds the primary summary line shown in the alert.
+ * Describes what will be discarded and what will be merged.
+ */
+export function buildSummaryMessage(
+  acceptedCount: number,
+  pendingCount: number,
+  rejectedCount: number,
+): string {
+  // Build the "discarded" part from non-accepted counts
+  const discardParts: string[] = [];
+  if (pendingCount > 0) {
+    discardParts.push(`${pendingCount} pending`);
+  }
+  if (rejectedCount > 0) {
+    discardParts.push(`${rejectedCount} rejected`);
+  }
+
+  const discardLabel = discardParts.length > 0
+    ? discardParts.join(" and ")
+    : null;
+
+  const plural = (n: number) => (n !== 1 ? "s" : "");
+
+  if (acceptedCount > 0 && discardLabel) {
+    return `Your ${acceptedCount} accepted suggestion${plural(acceptedCount)} will be merged into the manuscript. The ${discardLabel} suggestion${plural(pendingCount + rejectedCount)} will be discarded.`;
+  }
+
+  if (acceptedCount > 0) {
+    return `Your ${acceptedCount} accepted suggestion${plural(acceptedCount)} will be merged into the manuscript before re-analysis.`;
+  }
+
+  if (discardLabel) {
+    return `All ${discardLabel} suggestion${plural(pendingCount + rejectedCount)} will be discarded and replaced with new analysis results.`;
+  }
+
+  return "All existing suggestions will be replaced with new analysis results.";
 }
 
 export function ReplaceAnalysisConfirmationDialog({
@@ -27,6 +66,7 @@ export function ReplaceAnalysisConfirmationDialog({
   onOpenChange,
   acceptedSuggestions,
   pendingCount,
+  rejectedCount,
   onConfirm,
 }: ReplaceAnalysisConfirmationDialogProps) {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -35,6 +75,12 @@ export function ReplaceAnalysisConfirmationDialog({
     onConfirm();
     onOpenChange(false);
   }, [onConfirm, onOpenChange]);
+
+  const summary = buildSummaryMessage(
+    acceptedSuggestions.length,
+    pendingCount,
+    rejectedCount,
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -56,12 +102,8 @@ export function ReplaceAnalysisConfirmationDialog({
           <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
             <AlertDescription className="text-amber-900 dark:text-amber-100">
               <div className="font-medium mb-1">
-                You have {pendingCount} pending suggestion{pendingCount !== 1 ? "s" : ""},
-                but your {acceptedSuggestions.length} accepted suggestion{acceptedSuggestions.length !== 1 ? "s" : ""} will be merged.
+                {summary}
               </div>
-              <p className={mutedText}>
-                All other suggestions (pending, rejected, or modified) will be deleted and replaced with new analysis results.
-              </p>
             </AlertDescription>
           </Alert>
 

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { applyAcceptedSuggestions, getAcceptedSuggestionsCharacterCount } from '@/lib/suggestionUtils'
+import {
+  applyAcceptedSuggestions,
+  getAcceptedSuggestionsCharacterCount,
+  mergeAcceptedSuggestionsToParagraphs,
+} from '@/lib/suggestionUtils'
 import type { Paragraph, Suggestion } from '@/types'
 
 const createSuggestion = (overrides?: Partial<Suggestion>): Suggestion => ({
@@ -80,5 +84,72 @@ describe('suggestionUtils', () => {
 
     expect(applyAcceptedSuggestions(paragraphs, suggestions)).toBe('')
     expect(getAcceptedSuggestionsCharacterCount(paragraphs, suggestions)).toBe(0)
+  })
+})
+
+describe('mergeAcceptedSuggestionsToParagraphs', () => {
+  it('returns original paragraphs when no suggestions are accepted', () => {
+    const paragraphs = makeParagraphs('First', 'Second')
+    const suggestions = [
+      createSuggestion({ paragraphId: 'p-1', proposedChange: 'Changed', status: 'Pending' }),
+    ]
+
+    const result = mergeAcceptedSuggestionsToParagraphs(paragraphs, suggestions)
+    expect(result).toEqual(paragraphs)
+  })
+
+  it('merges only accepted suggestions into paragraph text', () => {
+    const paragraphs = makeParagraphs('Original A', 'Original B', 'Original C')
+    const suggestions = [
+      createSuggestion({ id: 's1', paragraphId: 'p-1', proposedChange: 'Accepted A', status: 'Accepted' }),
+      createSuggestion({ id: 's2', paragraphId: 'p-2', proposedChange: 'Pending B', status: 'Pending' }),
+      createSuggestion({ id: 's3', paragraphId: 'p-3', proposedChange: 'Rejected C', status: 'Rejected' }),
+    ]
+
+    const result = mergeAcceptedSuggestionsToParagraphs(paragraphs, suggestions)
+    expect(result[0].text).toBe('Accepted A')
+    expect(result[1].text).toBe('Original B')
+    expect(result[2].text).toBe('Original C')
+  })
+
+  it('uses userSteeringInput for Modified suggestions', () => {
+    const paragraphs = makeParagraphs('Original')
+    const suggestions = [
+      createSuggestion({
+        paragraphId: 'p-1',
+        proposedChange: 'AI proposed',
+        status: 'Modified',
+        userSteeringInput: 'User version',
+      }),
+    ]
+
+    const result = mergeAcceptedSuggestionsToParagraphs(paragraphs, suggestions)
+    expect(result[0].text).toBe('User version')
+  })
+
+  it('falls back to proposedChange for Modified without userSteeringInput', () => {
+    const paragraphs = makeParagraphs('Original')
+    const suggestions = [
+      createSuggestion({
+        paragraphId: 'p-1',
+        proposedChange: 'AI proposed',
+        status: 'Modified',
+      }),
+    ]
+
+    const result = mergeAcceptedSuggestionsToParagraphs(paragraphs, suggestions)
+    expect(result[0].text).toBe('AI proposed')
+  })
+
+  it('preserves paragraph IDs after merge', () => {
+    const paragraphs = makeParagraphs('A', 'B')
+    const suggestions = [
+      createSuggestion({ paragraphId: 'p-2', proposedChange: 'New B', status: 'Accepted' }),
+    ]
+
+    const result = mergeAcceptedSuggestionsToParagraphs(paragraphs, suggestions)
+    expect(result[0].id).toBe('p-1')
+    expect(result[1].id).toBe('p-2')
+    expect(result[1].text).toBe('New B')
   })
 })
