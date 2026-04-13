@@ -5,8 +5,8 @@
   <!-- Step 1: Upload or Paste -->
   <rect x="40" y="55" width="112" height="90" rx="9" fill="#a5d8ff" stroke="#4a9eed" stroke-width="1.5"/>
   <text x="96" y="42" text-anchor="middle" font-size="18">📄</text>
-  <text x="96" y="96" text-anchor="middle" font-size="15" fill="#ffffff">Upload</text>
-  <text x="96" y="113" text-anchor="middle" font-size="15" fill="#ffffff">or Paste</text>
+  <text x="96" y="96" text-anchor="middle" font-size="15" fill="#000000">Upload</text>
+  <text x="96" y="113" text-anchor="middle" font-size="15" fill="#000000">or Paste</text>
   <text x="96" y="168" text-anchor="middle" font-size="11" fill="#ffffff">Drag a .docx or paste</text>
   <text x="96" y="182" text-anchor="middle" font-size="11" fill="#ffffff">text directly</text>
   <text x="96" y="212" text-anchor="middle" font-size="12" font-weight="600" fill="#4a9eed">Step 1</text>
@@ -18,8 +18,8 @@
   <!-- Step 2: Guide & Analyze -->
   <rect x="202" y="55" width="112" height="90" rx="9" fill="#d0bfff" stroke="#8b5cf6" stroke-width="1.5"/>
   <text x="258" y="42" text-anchor="middle" font-size="18">🤖</text>
-  <text x="258" y="96" text-anchor="middle" font-size="15" fill="#ffffff">Guide &amp;</text>
-  <text x="258" y="113" text-anchor="middle" font-size="15" fill="#ffffff">Analyze</text>
+  <text x="258" y="96" text-anchor="middle" font-size="15" fill="#000000">Guide &amp;</text>
+  <text x="258" y="113" text-anchor="middle" font-size="15" fill="#000000">Analyze</text>
   <text x="258" y="168" text-anchor="middle" font-size="11" fill="#ffffff">Pick a tone, add</text>
   <text x="258" y="182" text-anchor="middle" font-size="11" fill="#ffffff">custom instructions</text>
   <text x="258" y="212" text-anchor="middle" font-size="12" font-weight="600" fill="#8b5cf6">Step 2</text>
@@ -31,8 +31,8 @@
   <!-- Step 3: Review & Refine -->
   <rect x="364" y="55" width="112" height="90" rx="9" fill="#fff3bf" stroke="#f59e0b" stroke-width="1.5"/>
   <text x="420" y="42" text-anchor="middle" font-size="18">✏️</text>
-  <text x="420" y="96" text-anchor="middle" font-size="15" fill="#ffffff">Review &amp;</text>
-  <text x="420" y="113" text-anchor="middle" font-size="15" fill="#ffffff">Refine</text>
+  <text x="420" y="96" text-anchor="middle" font-size="15" fill="#000000">Review &amp;</text>
+  <text x="420" y="113" text-anchor="middle" font-size="15" fill="#000000">Refine</text>
   <text x="420" y="168" text-anchor="middle" font-size="11" fill="#ffffff">Accept, reject, or</text>
   <text x="420" y="182" text-anchor="middle" font-size="11" fill="#ffffff">modify suggestions</text>
   <text x="420" y="212" text-anchor="middle" font-size="12" font-weight="600" fill="#f59e0b">Step 3</text>
@@ -44,8 +44,8 @@
   <!-- Step 4: Export .docx -->
   <rect x="526" y="55" width="112" height="90" rx="9" fill="#b2f2bb" stroke="#22c55e" stroke-width="1.5"/>
   <text x="582" y="42" text-anchor="middle" font-size="18">📥</text>
-  <text x="582" y="96" text-anchor="middle" font-size="15" fill="#ffffff">Export</text>
-  <text x="582" y="113" text-anchor="middle" font-size="15" fill="#ffffff">.docx</text>
+  <text x="582" y="96" text-anchor="middle" font-size="15" fill="#000000">Export</text>
+  <text x="582" y="113" text-anchor="middle" font-size="15" fill="#000000">.docx</text>
   <text x="582" y="168" text-anchor="middle" font-size="11" fill="#ffffff">Download polished</text>
   <text x="582" y="182" text-anchor="middle" font-size="11" fill="#ffffff">manuscript</text>
   <text x="582" y="212" text-anchor="middle" font-size="12" font-weight="600" fill="#22c55e">Step 4</text>
