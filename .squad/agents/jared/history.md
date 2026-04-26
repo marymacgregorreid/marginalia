@@ -49,6 +49,38 @@
 - Aspire.Hosting.Testing: 9.2.0
 - coverlet.collector: 6.0.4
 
+### Home Page Feature Tests (2026-03-29)
+
+**Backend tests (all compile and pass — 42 tests):**
+
+- `tests/unit/Domain/DocumentStatusTests.cs` — DocumentStatus enum serialization (Draft, Analyzed), JSON string representation, all enum values
+- `tests/unit/Domain/DocumentSummaryTests.cs` — DocumentSummary DTO construction, serialization (camelCase), deserialization, verifies no `content` or `suggestions` fields (lightweight projection)
+- `tests/unit/Domain/DocumentListResponseTests.cs` — DocumentListResponse wrapper, wraps in `documents` property (not bare array), empty/multiple document cases
+- `tests/unit/Domain/DocumentHomePageFieldsTests.cs` — Document model with Title, Status, CreatedAt, UpdatedAt fields, status transitions (Draft → Analyzed), timestamp preservation, title generation defaults, suggestion count projection
+- `tests/unit/Domain/PasteDocumentRequestTitleTests.cs` — Optional Title field on PasteDocumentRequest, serialization/deserialization with and without title
+
+**Key finding:** Gilfoyle already added Title, Status, CreatedAt, UpdatedAt to the Document model and Title to PasteDocumentRequest (with sensible defaults: Title = "", Status = Draft, timestamps = MinValue). All backend tests passed immediately.
+
+**Frontend tests:**
+
+- `tests/components/DocumentUploader.title.test.tsx` — Title input field tests (4 fail: title input not rendered yet, 1 pass: upload-without-title backward compat). Expected TDD red — Dinesh needs to add the title input.
+- `tests/pages/HomePage.test.tsx` — Full Home page contract: document list, empty state, loading spinner, error state, navigation, "New Manuscript" button. Won't compile until `src/pages/HomePage.tsx` is created.
+- `tests/hooks/useDocuments.test.ts` — useDocuments hook: fetch on mount, loading state, error handling, empty list, correct API endpoint. Won't compile until `src/hooks/useDocuments.ts` is created.
+
+**Testing decisions:**
+
+- Mock at the `fetch` boundary for frontend tests (not at service layer) — tests the full request chain
+- Backend DTO tests verify serialization excludes heavyweight fields (content, suggestions) — enforces the lightweight listing contract
+- Title generation format tests use string interpolation to verify the expected format without depending on controller logic
+
+### 2026-03-29 — Cross-Agent: Home Page Feature Complete
+
+**Richard (Lead):** API design provided the spec for all test contracts. Flat REST hierarchy, DocumentSummary DTO without content/suggestions, title defaults.
+
+**Gilfoyle (Backend):** All backend endpoints implemented. 42 backend tests pass against his implementation. Legacy Cosmos documents handled cleanly — no migration needed.
+
+**Dinesh (Frontend):** React Router, HomePage, useDocuments hook, title input all implemented. Frontend tests pass against his implementation. Build clean, 82+ tests pass.
+
 **Session Completion (2026-03-22 Session Log):**
 
 - Orchestration.IntegrationTests project created with resource verification tests
@@ -73,19 +105,19 @@ Created comprehensive test suite for the userId partitioning changes being imple
    - Concurrent operations with multiple users
    - Edge cases (not found returns null, duplicates handled)
 
-2. **`tests/unit/Repositories/UserIdSessionRepositoryContractTests.cs`** — 12 tests validating ISessionRepository contract with userId:
+1. **`tests/unit/Repositories/UserIdSessionRepositoryContractTests.cs`** — 12 tests validating ISessionRepository contract with userId:
    - GetByIdAsync with userId + sessionId composite key
    - SaveAsync stores userId correctly
    - AddDocumentToSessionAsync with userId parameter
    - User isolation (same sessionId for different users creates separate sessions)
    - Concurrent operations
 
-3. **`tests/unit/Domain/UserIdDefaultingTests.cs`** — 9 tests validating "_anonymous" default behavior:
+1. **`tests/unit/Domain/UserIdDefaultingTests.cs`** — 9 tests validating "_anonymous" default behavior:
    - Document, UserSession, and Suggestion all default to "_anonymous" when userId not specified
    - Explicit userId values are preserved
    - Record `with` syntax preserves userId
 
-4. **`tests/integration/Controllers/UserIdHeaderExtractionTests.cs`** — 8 tests validating controller X-User-Id header extraction:
+1. **`tests/integration/Controllers/UserIdHeaderExtractionTests.cs`** — 8 tests validating controller X-User-Id header extraction:
    - Controllers extract userId from X-User-Id header
    - Missing header defaults to "_anonymous"
    - Empty/whitespace header defaults to "_anonymous"
@@ -101,6 +133,7 @@ Created comprehensive test suite for the userId partitioning changes being imple
 **Build Status:**
 
 Tests do NOT compile yet — expected, as Gilfoyle is implementing source changes in parallel:
+
 - Domain models need `UserId` property added (Document, UserSession, Suggestion)
 - Repository interfaces need userId parameters added (IDocumentRepository, ISessionRepository)
 - Controllers need X-User-Id header extraction logic

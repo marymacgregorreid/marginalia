@@ -41,8 +41,27 @@ param apiClientId string = ''
 @sys.description('Entra ID SPA app registration client ID. Leave empty to disable authentication.')
 param spaClientId string = ''
 
+@sys.description('Location for the Azure Static Web App. Must be one of the supported regions. Defaults to the primary location if not specified.')
+@allowed([
+  ''
+  'centralus'
+  'eastasia'
+  'eastus2'
+  'westeurope'
+  'westus2'
+])
+param staticWebAppLocation string = ''
+
+@sys.description('Container image to deploy for the backend API Container App.')
+param containerImage string = 'ghcr.io/marymacgregorreid/marginalia-service:latest'
+
+@sys.description('Optional access code to protect the application in single-user mode. Leave empty to disable.')
+@secure()
+param accessCode string = ''
+
 var abbrs = loadJsonContent('./abbreviations.json')
 var modelDeployments = loadJsonContent('./model-deployments.json')
+var effectiveStaticWebAppLocation = !empty(staticWebAppLocation) ? staticWebAppLocation : location
 
 // Tags that should be applied to all resources.
 var tags = {
@@ -80,7 +99,7 @@ module rg 'br/public:avm/res/resources/resource-group:0.4.3' = {
 
 // --------- NETWORKING RESOURCES ---------
 // Virtual Network with subnets for Container Apps Environment and Private Endpoints
-module virtualNetwork 'br/public:avm/res/network/virtual-network:0.1.5' = {
+module virtualNetwork 'br/public:avm/res/network/virtual-network:0.8.0' = {
   name: 'virtual-network-deployment-${resourceToken}'
   scope: resourceGroup(resourceGroupName)
   dependsOn: [
@@ -97,8 +116,7 @@ module virtualNetwork 'br/public:avm/res/network/virtual-network:0.1.5' = {
       {
         name: acaSubnetName
         addressPrefix: '10.0.0.0/23'
-        // NOTE: ACA Consumption environments DO NOT require subnet delegation to Microsoft.App/environments
-        // The delegation is only for Workload Profiles environments
+        delegation: 'Microsoft.App/environments'
       }
       {
         name: privateEndpointSubnetName
@@ -111,7 +129,7 @@ module virtualNetwork 'br/public:avm/res/network/virtual-network:0.1.5' = {
 }
 
 // Private DNS Zone for Cosmos DB
-module cosmosDbPrivateDnsZone 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
+module cosmosDbPrivateDnsZone 'br/public:avm/res/network/private-dns-zone:0.8.1' = {
   name: 'cosmos-db-private-dns-zone-${resourceToken}'
   scope: resourceGroup(resourceGroupName)
   dependsOn: [
@@ -130,7 +148,7 @@ module cosmosDbPrivateDnsZone 'br/public:avm/res/network/private-dns-zone:0.6.0'
 }
 
 // Private DNS Zones for Azure AI Foundry / Cognitive Services
-module foundryPrivateDnsZone 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
+module foundryPrivateDnsZone 'br/public:avm/res/network/private-dns-zone:0.8.1' = {
   name: 'foundry-private-dns-zone-${resourceToken}'
   scope: resourceGroup(resourceGroupName)
   dependsOn: [
@@ -149,7 +167,7 @@ module foundryPrivateDnsZone 'br/public:avm/res/network/private-dns-zone:0.6.0' 
 }
 
 // Private DNS Zone for OpenAI endpoint access
-module openAiPrivateDnsZone 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
+module openAiPrivateDnsZone 'br/public:avm/res/network/private-dns-zone:0.8.1' = {
   name: 'openai-private-dns-zone-${resourceToken}'
   scope: resourceGroup(resourceGroupName)
   dependsOn: [
@@ -207,7 +225,7 @@ module foundryService './cognitive-services/accounts/main.bicep' = {
     kind: 'AIServices'
     location: location
     customSubDomainName: foundryCustomSubDomainName
-    disableLocalAuth: false
+    disableLocalAuth: true
     allowProjectManagement: true
     diagnosticSettings: [
       {
@@ -231,23 +249,6 @@ module foundryService './cognitive-services/accounts/main.bicep' = {
       systemAssigned: true
     }
     publicNetworkAccess: enablePublicNetworkAccess ? 'Enabled' : 'Disabled'
-    privateEndpoints: [
-      {
-        name: foundryPrivateEndpointName
-        subnetResourceId: virtualNetwork.outputs.subnetResourceIds[1] // privateEndpointSubnet
-        privateDnsZoneGroup: {
-          privateDnsZoneGroupConfigs: [
-            {
-              privateDnsZoneResourceId: foundryPrivateDnsZone.outputs.resourceId
-            }
-            {
-              privateDnsZoneResourceId: openAiPrivateDnsZone.outputs.resourceId
-            }
-          ]
-        }
-        service: 'account'
-      }
-    ]
     sku: 'S0'
     deployments: modelDeployments
     raiPolicies: [
@@ -316,6 +317,43 @@ module foundryRoleAssignments './core/security/role_foundry.bicep' = {
   }
 }
 
+// Private Endpoint for Foundry — created as a separate deployment after the foundryService module
+// completes to avoid a race condition where the account is still in "Accepted" state.
+module foundryPrivateEndpoint 'br/public:avm/res/network/private-endpoint:0.12.0' = {
+  name: 'foundry-private-endpoint-deployment-${resourceToken}'
+  scope: resourceGroup(resourceGroupName)
+  dependsOn: [
+    foundryRoleAssignments
+  ]
+  params: {
+    name: foundryPrivateEndpointName
+    location: location
+    tags: tags
+    subnetResourceId: virtualNetwork.outputs.subnetResourceIds[1] // privateEndpointSubnet
+    privateLinkServiceConnections: [
+      {
+        name: foundryPrivateEndpointName
+        properties: {
+          privateLinkServiceId: foundryService.outputs.resourceId
+          groupIds: [
+            'account'
+          ]
+        }
+      }
+    ]
+    privateDnsZoneGroup: {
+      privateDnsZoneGroupConfigs: [
+        {
+          privateDnsZoneResourceId: foundryPrivateDnsZone.outputs.resourceId
+        }
+        {
+          privateDnsZoneResourceId: openAiPrivateDnsZone.outputs.resourceId
+        }
+      ]
+    }
+  }
+}
+
 // --------- COSMOS DB (SERVERLESS) ---------
 module cosmosDbAccount 'br/public:avm/res/document-db/database-account:0.19.0' = {
   name: 'cosmos-db-account-deployment-${resourceToken}'
@@ -330,7 +368,6 @@ module cosmosDbAccount 'br/public:avm/res/document-db/database-account:0.19.0' =
     capabilitiesToAdd: [
       'EnableServerless'
     ]
-    enableBurstCapacity: false
     disableLocalAuthentication: false
     disableKeyBasedMetadataWriteAccess: false
     zoneRedundant: false
@@ -376,19 +413,13 @@ module cosmosDbAccount 'br/public:avm/res/document-db/database-account:0.19.0' =
           {
             name: 'documents'
             paths: [
-              '/sessionId'
+              '/userId'
             ]
           }
           {
             name: 'sessions'
             paths: [
-              '/id'
-            ]
-          }
-          {
-            name: 'suggestions'
-            paths: [
-              '/documentId'
+              '/userId'
             ]
           }
         ]
@@ -398,7 +429,7 @@ module cosmosDbAccount 'br/public:avm/res/document-db/database-account:0.19.0' =
 }
 
 // --------- CONTAINER APPS ENVIRONMENT ---------
-module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.10.0' = {
+module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.13.1' = {
   name: 'container-apps-environment-deployment-${resourceToken}'
   scope: resourceGroup(resourceGroupName)
   dependsOn: [
@@ -408,17 +439,34 @@ module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.10.
     name: containerAppsEnvironmentName
     location: location
     tags: tags
-    logAnalyticsWorkspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
+    appLogsConfiguration: {
+      destination: 'log-analytics'
+      logAnalyticsWorkspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
+    }
     zoneRedundant: false
     // VNET integration - attach to the ACA subnet
-    infrastructureSubnetId: virtualNetwork.outputs.subnetResourceIds[0] // acaSubnet
+    infrastructureSubnetResourceId: virtualNetwork.outputs.subnetResourceIds[0] // acaSubnet
     // internal: false means the environment remains publicly accessible (external ingress)
     internal: false
+    // Allow public network access so smoke tests and external clients can reach the container apps
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+// --------- ASPIRE DASHBOARD ---------
+module aspireDashboard 'aspire-dashboard.bicep' = {
+  name: 'aspire-dashboard-deployment-${resourceToken}'
+  scope: resourceGroup(resourceGroupName)
+  dependsOn: [
+    containerAppsEnvironment
+  ]
+  params: {
+    containerAppsEnvironmentName: containerAppsEnvironmentName
   }
 }
 
 // --------- CONTAINER APP (marginalia-service — .NET backend API) ---------
-module containerApp 'br/public:avm/res/app/container-app:0.12.0' = {
+module containerApp 'br/public:avm/res/app/container-app:0.22.0' = {
   name: 'container-app-api-deployment-${resourceToken}'
   scope: resourceGroup(resourceGroupName)
   dependsOn: [
@@ -437,9 +485,10 @@ module containerApp 'br/public:avm/res/app/container-app:0.12.0' = {
     containers: [
       {
         name: 'api'
-        image: 'ghcr.io/marymacgregorreid/marginalia-service:latest'
+        image: containerImage
         resources: {
-          cpu: '0.5'
+          // AVM pattern: use json() for fractional CPU until native float support is available in Bicep.
+          cpu: json('0.5')
           memory: '1Gi'
         }
         env: [
@@ -454,6 +503,14 @@ module containerApp 'br/public:avm/res/app/container-app:0.12.0' = {
           {
             name: 'AZURE_AI_FOUNDRY_PROJECT_ENDPOINT'
             value: 'https://${foundryCustomSubDomainName}.services.ai.azure.com/api/projects/${defaultProjectName}'
+          }
+          {
+            name: 'ConnectionStrings__ai-foundry'
+            value: 'Endpoint=https://${foundryCustomSubDomainName}.services.ai.azure.com/api/projects/${defaultProjectName}'
+          }
+          {
+            name: 'FOUNDRY_MODEL_NAME'
+            value: modelDeployments[0].name
           }
           {
             name: 'ConnectionStrings__cosmos'
@@ -473,6 +530,12 @@ module containerApp 'br/public:avm/res/app/container-app:0.12.0' = {
               value: environment().authentication.loginEndpoint
             }
           ] : [])
+          ...(!empty(accessCode) ? [
+            {
+              name: 'ACCESS_CODE'
+              value: accessCode
+            }
+          ] : [])
           {
             name: 'CORS__AllowedOrigins'
             value: 'https://${staticWebApp.outputs.defaultHostname}'
@@ -483,8 +546,10 @@ module containerApp 'br/public:avm/res/app/container-app:0.12.0' = {
     ingressExternal: true
     ingressTargetPort: 8080
     ingressTransport: 'auto'
-    scaleMinReplicas: 0
-    scaleMaxReplicas: 3
+    scaleSettings: {
+      minReplicas: 0
+      maxReplicas: 3
+    }
   }
 }
 
@@ -493,7 +558,7 @@ var containerAppFoundryRoleAssignments = [
   {
     roleDefinitionIdOrName: 'Cognitive Services OpenAI User'
     principalType: 'ServicePrincipal'
-    principalId: containerApp.outputs.systemAssignedMIPrincipalId
+    principalId: containerApp.outputs.?systemAssignedMIPrincipalId
   }
 ]
 
@@ -508,14 +573,14 @@ module containerAppFoundryRoles './core/security/role_foundry.bicep' = {
 
 // Assign Cosmos DB Built-in Data Contributor role to the Container App's managed identity
 // for data plane access. The built-in role GUID is 00000000-0000-0000-0000-000000000002.
-module containerAppCosmosDbRoles 'br/public:avm/res/document-db/database-account:0.19.0' = {
+module containerAppCosmosDbRoles './core/security/role_cosmosdb.bicep' = {
   name: 'container-app-cosmos-roles-${resourceToken}'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: cosmosDbAccountName
+    cosmosDbAccountName: cosmosDbAccountName
     sqlRoleAssignments: [
       {
-        principalId: containerApp.outputs.systemAssignedMIPrincipalId
+        principalId: containerApp.outputs.?systemAssignedMIPrincipalId
         roleDefinitionId: '00000000-0000-0000-0000-000000000002'
       }
     ]
@@ -523,14 +588,14 @@ module containerAppCosmosDbRoles 'br/public:avm/res/document-db/database-account
 }
 
 // Assign Cosmos DB Built-in Data Contributor to the deploying principal for local dev
-module principalCosmosDbRoles 'br/public:avm/res/document-db/database-account:0.19.0' = if (!empty(principalId)) {
+module principalCosmosDbRoles './core/security/role_cosmosdb.bicep' = if (!empty(principalId)) {
   name: 'principal-cosmos-roles-${resourceToken}'
   scope: resourceGroup(resourceGroupName)
   dependsOn: [
     cosmosDbAccount
   ]
   params: {
-    name: cosmosDbAccountName
+    cosmosDbAccountName: cosmosDbAccountName
     sqlRoleAssignments: [
       {
         principalId: principalId
@@ -541,7 +606,7 @@ module principalCosmosDbRoles 'br/public:avm/res/document-db/database-account:0.
 }
 
 // --------- STATIC WEB APP (marginalia-app — React frontend) ---------
-module staticWebApp 'br/public:avm/res/web/static-site:0.7.0' = {
+module staticWebApp 'br/public:avm/res/web/static-site:0.9.3' = {
   name: 'static-web-app-deployment-${resourceToken}'
   scope: resourceGroup(resourceGroupName)
   dependsOn: [
@@ -549,7 +614,7 @@ module staticWebApp 'br/public:avm/res/web/static-site:0.7.0' = {
   ]
   params: {
     name: staticWebAppName
-    location: location
+    location: effectiveStaticWebAppLocation
     tags: union(tags, {
       'azd-service-name': 'frontend'
     })
@@ -569,6 +634,7 @@ output LOG_ANALYTICS_WORKSPACE_ID string = logAnalyticsWorkspace.outputs.logAnal
 output APPLICATION_INSIGHTS_NAME string = applicationInsights.outputs.name
 output APPLICATION_INSIGHTS_RESOURCE_ID string = applicationInsights.outputs.resourceId
 output APPLICATION_INSIGHTS_INSTRUMENTATION_KEY string = applicationInsights.outputs.instrumentationKey
+output APPLICATIONINSIGHTS_CONNECTION_STRING string = applicationInsights.outputs.connectionString
 
 // Microsoft Foundry
 output AZURE_AI_FOUNDRY_NAME string = foundryService.outputs.name

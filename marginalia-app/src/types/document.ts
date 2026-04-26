@@ -2,9 +2,11 @@ import type { Suggestion } from "./suggestion";
 
 export type DocumentSource = "Local" | "GoogleDocs";
 
-export interface TextRange {
-  start: number;
-  end: number;
+export type DocumentStatus = "Draft" | "Analyzed";
+
+export interface Paragraph {
+  id: string;
+  text: string;
 }
 
 export interface Document {
@@ -12,6 +14,22 @@ export interface Document {
   userId: string;
   filename: string;
   source: DocumentSource;
-  content: string;
+  title: string;
+  status: DocumentStatus;
+  createdAt: string;
+  updatedAt: string;
+  paragraphs: Paragraph[];
   suggestions: Suggestion[];
+}
+
+export interface DocumentSummary {
+  id: string;
+  title: string;
+  filename: string;
+  source: DocumentSource;
+  status: DocumentStatus;
+  createdAt: string;
+  updatedAt: string;
+  suggestionCount: number;
+  paragraphCount: number;
 }

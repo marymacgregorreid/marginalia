@@ -1,12 +1,14 @@
 import { useCallback, useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Upload, FileText, ClipboardPaste } from "lucide-react";
+import { cn, mutedText } from "@/lib/utils";
 
 interface DocumentUploaderProps {
-  onFileUpload: (file: File) => Promise<void>;
-  onPaste: (content: string, filename?: string) => Promise<void>;
+  onFileUpload: (file: File, title?: string) => Promise<void>;
+  onPaste: (content: string, filename?: string, title?: string) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -18,6 +20,7 @@ export function DocumentUploader({
   const [isDragOver, setIsDragOver] = useState(false);
   const [showPaste, setShowPaste] = useState(false);
   const [pasteContent, setPasteContent] = useState("");
+  const [title, setTitle] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = useCallback(
@@ -46,32 +49,42 @@ export function DocumentUploader({
 
       const file = e.dataTransfer.files[0];
       if (file) {
-        await onFileUpload(file);
+        await onFileUpload(file, title || undefined);
       }
     },
-    [onFileUpload]
+    [onFileUpload, title]
   );
 
   const handleFileSelect = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) {
-        await onFileUpload(file);
+        await onFileUpload(file, title || undefined);
       }
     },
-    [onFileUpload]
+    [onFileUpload, title]
   );
 
   const handlePasteSubmit = useCallback(async () => {
     if (pasteContent.trim()) {
-      await onPaste(pasteContent.trim());
+      await onPaste(pasteContent.trim(), undefined, title || undefined);
       setPasteContent("");
       setShowPaste(false);
     }
-  }, [pasteContent, onPaste]);
+  }, [pasteContent, onPaste, title]);
 
   return (
     <div className="flex flex-col items-center gap-6 w-full max-w-2xl mx-auto">
+      <Input
+        type="text"
+        placeholder="Enter manuscript title (optional)"
+        value={title}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
+        className="w-full"
+        aria-label="Manuscript title"
+        disabled={isLoading}
+      />
+
       <Card
         className={`w-full border-2 border-dashed transition-colors cursor-pointer ${
           isDragOver
@@ -103,7 +116,7 @@ export function DocumentUploader({
             <p className="text-lg font-medium">
               Drop your manuscript here
             </p>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className={cn(mutedText, "mt-1")}>
               or click to browse — supports Word documents (.docx)
             </p>
           </div>
@@ -117,7 +130,7 @@ export function DocumentUploader({
             disabled={isLoading}
           />
           {isLoading && (
-            <p className="text-sm text-muted-foreground animate-pulse">
+            <p className={cn(mutedText, "animate-pulse")}>
               Processing document…
             </p>
           )}
@@ -126,7 +139,7 @@ export function DocumentUploader({
 
       <div className="flex items-center gap-4 w-full">
         <div className="flex-1 h-px bg-border" />
-        <span className="text-sm text-muted-foreground">or</span>
+        <span className={mutedText}>or</span>
         <div className="flex-1 h-px bg-border" />
       </div>
 

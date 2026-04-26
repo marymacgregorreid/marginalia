@@ -76,3 +76,29 @@
 - Specification section contains all original PRD content (FRs, NFRs, tech stack, architecture, data model, constraints)
 
 **Outcome:** README now presents Marginalia as a finished product to visitors while preserving full technical specification for developers.
+
+### 2026-03-29 — Home Page API Design
+
+**Architectural decision:** Keep documents as the top-level REST resource. Sessions remain a parallel resource, not a parent. Documents are what users care about; sessions are workflow implementation details.
+
+**New fields on Document model:** `Title` (required string), `Status` (Draft|Analyzed enum), `CreatedAt` (DateTimeOffset), `UpdatedAt` (DateTimeOffset).
+
+**New endpoint:** `GET /api/documents` returns `DocumentListResponse` wrapping `DocumentSummary[]` — a lightweight DTO without `content` or `suggestions`. Sorted by `updatedAt` desc. No pagination v1.
+
+**New DTOs:** `DocumentSummary` (id, title, filename, source, status, createdAt, updatedAt, suggestionCount), `DocumentListResponse` (wrapper for array — extensible for pagination).
+
+**Title defaults:** Upload → `"{createdAt:yyyy-MM-dd HH:mm} - {filename}"`, Paste → `"{createdAt:yyyy-MM-dd HH:mm} - Untitled"`.
+
+**Status transitions:** Draft → Analyzed on first successful analysis. Never goes backward.
+
+**Migration strategy:** Handle missing fields on Cosmos DB read with sensible defaults (title→filename, status→infer from suggestions, createdAt→MinValue). Lazy backfill on next save.
+
+**Pattern:** List endpoints should wrap arrays in objects (`{ "documents": [...] }`) not return bare arrays — enables adding pagination metadata without breaking clients.
+
+### 2026-03-29 — Cross-Agent: Home Page Implementation Status
+
+**Gilfoyle (Backend):** Implemented all API contracts. Document model extended, DocumentStatus enum, DocumentSummary/DocumentListResponse DTOs, list endpoint, upload/paste title support, analyze status transition. Build clean, 163 tests pass. No repository changes needed — existing `GetByUserAsync` sufficed.
+
+**Dinesh (Frontend):** React Router v7 (/, /new, /editor/:id), HomePage with document listing, useDocuments hook, title input on DocumentUploader. Build clean, 82+ tests pass.
+
+**Jared (Tester):** 42 backend unit tests + frontend tests covering DTOs, enum serialization, status transitions, title defaults, HomePage rendering, useDocuments hook. All pass.

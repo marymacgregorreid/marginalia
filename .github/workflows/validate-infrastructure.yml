@@ -1,0 +1,111 @@
+name: Validate Infrastructure
+
+on:
+  workflow_call:
+    inputs:
+      ENVIRONMENT:
+        description: "The environment to validate the application infrastructure for"
+        required: true
+        type: string
+      BUILD_VERSION:
+        description: "The version of the build to deploy to the application resources"
+        required: true
+        type: string
+      AZURE_LOCATION:
+        description: "The Azure region to deploy the application resources to"
+        required: true
+        type: string
+      AZURE_ENV_NAME:
+        description: "The name of the Azure environment"
+        required: true
+        type: string
+      CONTAINER_IMAGE:
+        description: "Container image to deploy (e.g., ghcr.io/owner/marginalia-service:v1.0.0). Defaults to :latest."
+        required: false
+        type: string
+        default: ''
+
+    secrets:
+      AZURE_TENANT_ID:
+        description: "The Azure tenant ID to use for authentication to Azure for deployment"
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        description: "The Azure subscription ID to use for authentication to Azure for deployment"
+        required: true
+      AZURE_CLIENT_ID:
+        description: "The Azure client ID to use for authentication to Azure for deployment"
+        required: true
+
+jobs:
+  validate-infrastructure:
+    name: Validate Infrastructure ${{ inputs.ENVIRONMENT }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.ENVIRONMENT }}
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME || inputs.AZURE_ENV_NAME }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION || inputs.AZURE_LOCATION }}
+      AZURE_PRINCIPAL_ID_TYPE: 'ServicePrincipal'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: latest
+
+      - name: Install Azure Developer CLI
+        uses: Azure/setup-azd@v2.2.1
+
+      - name: Authenticate Azure Developer CLI (Federated Credentials)
+        run: |
+          azd auth login \
+            --client-id "$AZURE_CLIENT_ID" \
+            --federated-credential-provider "github" \
+            --tenant-id "$AZURE_TENANT_ID"
+
+      - name: Authenticate Azure CLI (Federated Credentials)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Create Azure Developer CLI environment
+        run: |
+          azd env new "$AZURE_ENV_NAME" --location "$AZURE_LOCATION"
+
+      - name: Set Azure Developer CLI environment variables
+        run: |
+          azd env set AZURE_PRINCIPAL_ID_TYPE "$AZURE_PRINCIPAL_ID_TYPE"
+          azd env set AZURE_RESOURCE_GROUP "rg-${AZURE_ENV_NAME}"
+          CONTAINER_IMAGE="${{ inputs.CONTAINER_IMAGE }}"
+          if [ -n "$CONTAINER_IMAGE" ]; then
+            azd env set AZURE_CONTAINER_APP_IMAGE "$CONTAINER_IMAGE"
+          else
+            azd env set AZURE_CONTAINER_APP_IMAGE "ghcr.io/${{ github.repository_owner }}/marginalia-service:latest"
+          fi
+          # Enable Entra ID app registrations via preprovision hook when configured.
+          # Requires Application.ReadWrite.All Graph permission on the deploying identity.
+          ENTRA_AUTH="${{ vars.ENABLE_ENTRA_AUTH }}"
+          if [ -n "$ENTRA_AUTH" ]; then
+            azd env set ENABLE_ENTRA_AUTH "$ENTRA_AUTH"
+          fi
+
+      - name: Set hook scripts executable
+        run: chmod +x infra/hooks/*.sh
+
+      - name: Preview Infrastructure using Azure Developer CLI
+        run: azd provision --preview --no-prompt

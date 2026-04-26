@@ -437,3 +437,6 @@ coverage/
 
 # Stupid Mac Stuff
 .DS_Store
+
+# C# DevKit
+*.lscache

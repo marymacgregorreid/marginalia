@@ -1,4 +1,5 @@
 import type { ApiError } from "@/types";
+import { recordApiErrorTelemetry } from "@/telemetry";
 
 declare const __API_BASE_URL__: string;
 
@@ -10,6 +11,7 @@ const DEFAULT_USER_ID = "_anonymous";
 
 let baseUrl = DEFAULT_BASE_URL;
 let currentUserId: string = DEFAULT_USER_ID;
+let currentAccessCode: string | null = null;
 
 export function setApiBaseUrl(url: string): void {
   baseUrl = url.replace(/\/+$/, "");
@@ -27,7 +29,28 @@ export function getUserId(): string {
   return currentUserId;
 }
 
-async function handleResponse<T>(response: Response): Promise<T> {
+export function setAccessCode(code: string | null): void {
+  currentAccessCode = code;
+}
+
+export function getAccessCode(): string | null {
+  return currentAccessCode;
+}
+
+function buildHeaders(contentType?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    "X-User-Id": currentUserId,
+  };
+  if (contentType) {
+    headers["Content-Type"] = contentType;
+  }
+  if (currentAccessCode) {
+    headers["X-Access-Code"] = currentAccessCode;
+  }
+  return headers;
+}
+
+async function handleResponse<T>(response: Response, method: string, path: string): Promise<T> {
   if (!response.ok) {
     const error: ApiError = {
       message: response.statusText || "Request failed",
@@ -43,6 +66,13 @@ async function handleResponse<T>(response: Response): Promise<T> {
       // Use default message
     }
 
+    recordApiErrorTelemetry({
+      method,
+      path,
+      statusCode: error.statusCode,
+      message: error.message,
+    });
+
     throw error;
   }
 
@@ -54,71 +84,147 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "X-User-Id": currentUserId,
-    },
-  });
-  return handleResponse<T>(response);
+  try {
+    const response = await fetch(`${baseUrl}${path}`, {
+      method: "GET",
+      headers: buildHeaders("application/json"),
+    });
+    return handleResponse<T>(response, "GET", path);
+  } catch (error) {
+    if (error instanceof TypeError) {
+      recordApiErrorTelemetry({
+        method: "GET",
+        path,
+        message: error.message,
+      });
+    }
+    throw error;
+  }
 }
 
 export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-User-Id": currentUserId,
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  return handleResponse<T>(response);
+  try {
+    const response = await fetch(`${baseUrl}${path}`, {
+      method: "POST",
+      headers: buildHeaders("application/json"),
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return handleResponse<T>(response, "POST", path);
+  } catch (error) {
+    if (error instanceof TypeError) {
+      recordApiErrorTelemetry({
+        method: "POST",
+        path,
+        message: error.message,
+      });
+    }
+    throw error;
+  }
 }
 
 export async function apiPut<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      "X-User-Id": currentUserId,
-    },
-    body: JSON.stringify(body),
-  });
-  return handleResponse<T>(response);
+  try {
+    const response = await fetch(`${baseUrl}${path}`, {
+      method: "PUT",
+      headers: buildHeaders("application/json"),
+      body: JSON.stringify(body),
+    });
+    return handleResponse<T>(response, "PUT", path);
+  } catch (error) {
+    if (error instanceof TypeError) {
+      recordApiErrorTelemetry({
+        method: "PUT",
+        path,
+        message: error.message,
+      });
+    }
+    throw error;
+  }
+}
+
+export async function apiDelete<T>(path: string): Promise<T> {
+  try {
+    const response = await fetch(`${baseUrl}${path}`, {
+      method: "DELETE",
+      headers: buildHeaders("application/json"),
+    });
+    return handleResponse<T>(response, "DELETE", path);
+  } catch (error) {
+    if (error instanceof TypeError) {
+      recordApiErrorTelemetry({
+        method: "DELETE",
+        path,
+        message: error.message,
+      });
+    }
+    throw error;
+  }
 }
 
 export async function apiPostFile<T>(
   path: string,
-  file: File
+  file: File,
+  extraFields?: Record<string, string>
 ): Promise<T> {
   const formData = new FormData();
   formData.append("file", file);
+  if (extraFields) {
+    for (const [key, value] of Object.entries(extraFields)) {
+      formData.append(key, value);
+    }
+  }
 
-  const response = await fetch(`${baseUrl}${path}`, {
-    method: "POST",
-    headers: {
-      "X-User-Id": currentUserId,
-    },
-    body: formData,
-  });
-  return handleResponse<T>(response);
+  try {
+    const response = await fetch(`${baseUrl}${path}`, {
+      method: "POST",
+      headers: buildHeaders(),
+      body: formData,
+    });
+    return handleResponse<T>(response, "POST", path);
+  } catch (error) {
+    if (error instanceof TypeError) {
+      recordApiErrorTelemetry({
+        method: "POST",
+        path,
+        message: error.message,
+      });
+    }
+    throw error;
+  }
 }
 
 export async function apiGetBlob(path: string): Promise<Blob> {
-  const response = await fetch(`${baseUrl}${path}`, {
-    method: "GET",
-    headers: {
-      "X-User-Id": currentUserId,
-    },
-  });
+  try {
+    const response = await fetch(`${baseUrl}${path}`, {
+      method: "GET",
+      headers: buildHeaders(),
+    });
 
-  if (!response.ok) {
-    throw {
-      message: response.statusText || "Download failed",
-      statusCode: response.status,
-    } satisfies ApiError;
+    if (!response.ok) {
+      const error = {
+        message: response.statusText || "Download failed",
+        statusCode: response.status,
+      } satisfies ApiError;
+
+      recordApiErrorTelemetry({
+        method: "GET",
+        path,
+        statusCode: error.statusCode,
+        message: error.message,
+      });
+
+      throw error;
+    }
+
+    return response.blob();
+  } catch (error) {
+    if (error instanceof TypeError) {
+      recordApiErrorTelemetry({
+        method: "GET",
+        path,
+        message: error.message,
+      });
+    }
+    throw error;
   }
-
-  return response.blob();
 }

@@ -11,9 +11,9 @@ source: "multi-model-consensus (Opus 4.6, Sonnet 4.5, GPT-5.4)"
 **✅ THIS SKILL PRODUCES (exactly these, nothing more):**
 
 1. **`mesh.json`** — Generated from user answers about zones and squads (which squads participate, what zone each is in, paths/URLs for each), using `mesh.json.example` in this skill's directory as the schema template
-2. **`sync-mesh.sh` and `sync-mesh.ps1`** — Copied from this skill's directory into the project root (these are bundled resources, NOT generated code)
-3. **Zone 2 state repo initialization** (if applicable) — If the user specified a Zone 2 shared state repo, run `sync-mesh.sh --init` to scaffold the state repo structure
-4. **A decision entry** in `.squad/decisions/inbox/` documenting the mesh configuration for team awareness
+1. **`sync-mesh.sh` and `sync-mesh.ps1`** — Copied from this skill's directory into the project root (these are bundled resources, NOT generated code)
+1. **Zone 2 state repo initialization** (if applicable) — If the user specified a Zone 2 shared state repo, run `sync-mesh.sh --init` to scaffold the state repo structure
+1. **A decision entry** in `.squad/decisions/inbox/` documenting the mesh configuration for team awareness
 
 **❌ THIS SKILL DOES NOT PRODUCE:**
 
@@ -30,11 +30,13 @@ source: "multi-model-consensus (Opus 4.6, Sonnet 4.5, GPT-5.4)"
 When squads are on different machines (developer laptops, CI runners, cloud VMs, partner orgs), the local file-reading convention still works — but remote files need to arrive on your disk first. This skill teaches the pattern for distributed squad communication.
 
 **When this applies:**
+
 - Squads span multiple machines, VMs, or CI runners
 - Squads span organizations or companies
 - An agent needs context from a squad whose files aren't on the local filesystem
 
 **When this does NOT apply:**
+
 - All squads are on the same machine (just read the files directly)
 
 ## Patterns
@@ -55,7 +57,7 @@ The agent interface never changes. Agents always read local files. The distribut
 
 ### Agent Lifecycle (Distributed)
 
-```
+```text
 1. SYNC:    git pull (Zone 2) + curl (Zone 3) — materialize remote state
 2. READ:    cat .mesh/**/state.md — all files are local now
 3. WORK:    do their assigned work (the agent's normal task, NOT mesh-building)
@@ -96,6 +98,7 @@ Each squad writes only to its own directory (`boards/{self}.md`, `squads/{self}/
 ### Trust Boundaries
 
 Trust maps to git permissions:
+
 - **Same repo access** = full mesh visibility
 - **Read-only access** = can observe, can't write
 - **No access** = invisible (correct behavior)
@@ -114,6 +117,7 @@ For selective visibility, use separate repos per audience (internal, partner, pu
 ### Mesh State Repo
 
 The shared mesh state repo is a plain git repository — NOT a Squad project. It holds:
+
 - One directory per participating squad
 - Each directory contains at minimum a SUMMARY.md with the squad's current state
 - A root README explaining what the repo is and who participates
@@ -145,15 +149,15 @@ When a user invokes this skill to set up a distributed mesh, follow these steps 
 Ask these questions (adapt phrasing naturally, but get these answers):
 
 1. **Which squads are participating?** (List of squad names)
-2. **For each squad, which zone is it in?**
+1. **For each squad, which zone is it in?**
    - `local` — same filesystem (just need a path)
    - `remote-trusted` — different machine, same org, shared git access (need git URL + ref)
    - `remote-opaque` — different org, no shared auth (need HTTPS URL to published contract)
-3. **For each squad, what's the connection info?**
+1. **For each squad, what's the connection info?**
    - Local: relative or absolute path to their `.mesh/` directory
    - Remote-trusted: git URL (SSH or HTTPS), ref (branch/tag), and where to sync it to locally
    - Remote-opaque: HTTPS URL to their SUMMARY.md, where to sync it, and auth type (none/bearer)
-4. **Where should the shared state live?** (For Zone 2 squads: git repo URL for the mesh state, or confirm each squad syncs independently)
+1. **Where should the shared state live?** (For Zone 2 squads: git repo URL for the mesh state, or confirm each squad syncs independently)
 
 ### Step 2: GENERATE `mesh.json`
 
@@ -200,11 +204,13 @@ These are bundled resources. Do NOT generate them — COPY them directly.
 If the user specified a Zone 2 shared state repo in Step 1, run the initialization:
 
 **On Unix/Linux/macOS:**
+
 ```bash
 bash sync-mesh.sh --init
 ```
 
 **On Windows:**
+
 ```powershell
 .\sync-mesh.ps1 -Init
 ```
@@ -212,6 +218,7 @@ bash sync-mesh.sh --init
 This scaffolds the state repo structure (squad directories, placeholder SUMMARY.md files, root README).
 
 **Skip this step if:**
+
 - No Zone 2 squads are configured (local/opaque only)
 - The state repo already exists and is initialized
 
@@ -241,6 +248,7 @@ Write this file. The Scribe will merge it into the main decisions file later.
 ### Step 6: STOP
 
 **You are done.** Do not:
+
 - Generate sync scripts (they're bundled with this skill — COPY them)
 - Write validator code
 - Write test files
@@ -250,7 +258,7 @@ Write this file. The Scribe will merge it into the main decisions file later.
 
 Output a simple completion message:
 
-```
+```text
 ✅ Mesh configured. Created:
 - mesh.json (<N> squads)
 - sync-mesh.sh and sync-mesh.ps1 (copied from skill bundle)
@@ -264,6 +272,7 @@ Run `bash sync-mesh.sh` (or `.\sync-mesh.ps1` on Windows) before agents start to
 ## Anti-Patterns
 
 **❌ Code generation anti-patterns:**
+
 - Writing `mesh-config-validator.js` or any validator module
 - Writing test files for mesh configuration
 - Generating sync scripts instead of copying the bundled ones from this skill's directory
@@ -271,6 +280,7 @@ Run `bash sync-mesh.sh` (or `.\sync-mesh.ps1` on Windows) before agents start to
 - Building any code that "runs the mesh" — the mesh is read by agents, not executed
 
 **❌ Architectural anti-patterns:**
+
 - Building a federation protocol — Git push/pull IS federation
 - Running a sync daemon or server — Agents are not persistent. Sync at startup, publish at shutdown
 - Real-time notifications — Agents don't need real-time. They need "recent enough." `git pull` is recent enough
@@ -281,6 +291,7 @@ Run `bash sync-mesh.sh` (or `.\sync-mesh.ps1` on Windows) before agents start to
 - Any component requiring a running process — That's the line. Don't cross it
 
 **❌ Scope creep anti-patterns:**
+
 - Auto-advancing phases without user decision
 - Modifying agent charters or routing rules
 - Setting up CI/CD pipelines for mesh sync

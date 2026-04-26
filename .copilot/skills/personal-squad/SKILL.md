@@ -6,7 +6,7 @@ A personal squad is a user-level collection of AI agents that travel with you ac
 
 ## Directory Structure
 
-```
+```text
 ~/.config/squad/personal-squad/    # Linux/macOS
 %APPDATA%/squad/personal-squad/    # Windows
 ├── agents/
@@ -20,9 +20,9 @@ A personal squad is a user-level collection of AI agents that travel with you ac
 ## How It Works
 
 1. **Ambient Discovery:** When Squad starts a session, it checks for a personal squad directory
-2. **Merge:** Personal agents are merged into the session cast alongside project agents
-3. **Ghost Protocol:** Personal agents can read project state but not write to it
-4. **Kill Switch:** Set `SQUAD_NO_PERSONAL=1` to disable ambient discovery
+1. **Merge:** Personal agents are merged into the session cast alongside project agents
+1. **Ghost Protocol:** Personal agents can read project state but not write to it
+1. **Kill Switch:** Set `SQUAD_NO_PERSONAL=1` to disable ambient discovery
 
 ## Commands
 
@@ -35,6 +35,7 @@ A personal squad is a user-level collection of AI agents that travel with you ac
 ## Ghost Protocol
 
 See `templates/ghost-protocol.md` for the full rules. Key points:
+
 - Personal agents advise; project agents execute
 - No writes to project `.squad/` state
 - Transparent origin tagging in logs
@@ -43,6 +44,7 @@ See `templates/ghost-protocol.md` for the full rules. Key points:
 ## Configuration
 
 Optional `config.json` in the personal squad directory:
+
 ```json
 {
   "defaultModel": "auto",

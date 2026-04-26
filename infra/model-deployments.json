@@ -5,11 +5,11 @@
       "name": "gpt-5.3-chat",
       "version": "2026-03-03"
     },
-    "name": "gpt-5.3-chat",
+    "name": "reviewer",
     "sku": {
       "name": "GlobalStandard",
       "capacity": 50
     },
-    "raiPolicyName": "PromptBabblerContentPolicy"
+    "raiPolicyName": "MarginaliaContentPolicy"
   }
 ]

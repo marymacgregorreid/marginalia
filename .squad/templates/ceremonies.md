@@ -15,10 +15,11 @@
 | **Enabled** | ✅ yes |
 
 **Agenda:**
+
 1. Review the task and requirements
-2. Agree on interfaces and contracts between components
-3. Identify risks and edge cases
-4. Assign action items
+1. Agree on interfaces and contracts between components
+1. Identify risks and edge cases
+1. Assign action items
 
 ---
 
@@ -35,7 +36,8 @@
 | **Enabled** | ✅ yes |
 
 **Agenda:**
+
 1. What happened? (facts only)
-2. Root cause analysis
-3. What should change?
-4. Action items for next iteration
+1. Root cause analysis
+1. What should change?
+1. Action items for next iteration

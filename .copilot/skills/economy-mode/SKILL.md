@@ -9,11 +9,13 @@ source: "manual"
 ## SCOPE
 
 ✅ THIS SKILL PRODUCES:
+
 - A modified Layer 3 model selection table applied when economy mode is active
 - `economyMode: true` written to `.squad/config.json` when activated persistently
 - Spawn acknowledgments with `💰` indicator when economy mode is active
 
 ❌ THIS SKILL DOES NOT PRODUCE:
+
 - Code, tests, or documentation
 - Cost reports or billing artifacts
 - Changes to Layer 0, Layer 1, or Layer 2 resolution (user intent always wins)
@@ -40,10 +42,10 @@ When economy mode is **active**, Layer 3 auto-selection uses this table instead 
 
 | Task Output | Normal Mode | Economy Mode |
 |-------------|-------------|--------------|
-| Writing code (implementation, refactoring, bug fixes) | `claude-sonnet-4.5` | `gpt-4.1` or `gpt-5-mini` |
-| Writing prompts or agent designs | `claude-sonnet-4.5` | `gpt-4.1` or `gpt-5-mini` |
+| Writing code (implementation, refactoring, bug fixes) | `claude-sonnet-4.6` | `gpt-4.1` or `gpt-5-mini` |
+| Writing prompts or agent designs | `claude-sonnet-4.6` | `gpt-4.1` or `gpt-5-mini` |
 | Docs, planning, triage, changelogs, mechanical ops | `claude-haiku-4.5` | `gpt-4.1` or `gpt-5-mini` |
-| Architecture, code review, security audits | `claude-opus-4.5` | `claude-sonnet-4.5` |
+| Architecture, code review, security audits | `claude-opus-4.6` | `claude-sonnet-4.6` |
 | Scribe / logger / mechanical file ops | `claude-haiku-4.5` | `gpt-4.1` |
 
 **Prefer `gpt-4.1` over `gpt-5-mini`** when the task involves structured output or agentic tool use. Prefer `gpt-5-mini` for pure text generation tasks where latency matters.
@@ -53,40 +55,41 @@ When economy mode is **active**, Layer 3 auto-selection uses this table instead 
 ### On Session Start
 
 1. READ `.squad/config.json`
-2. CHECK for `economyMode: true` — if present, activate economy mode for the session
-3. STORE economy mode state in session context
+1. CHECK for `economyMode: true` — if present, activate economy mode for the session
+1. STORE economy mode state in session context
 
 ### On User Phrase Trigger
 
 **Session-only (no config change):** "use economy mode", "save costs", "go cheap"
 
 1. SET economy mode active for this session
-2. ACKNOWLEDGE: `✅ Economy mode active — using cost-optimized models this session. (Layer 0 and Layer 2 preferences still apply)`
+1. ACKNOWLEDGE: `✅ Economy mode active — using cost-optimized models this session. (Layer 0 and Layer 2 preferences still apply)`
 
 **Persistent:** "always use economy mode", "save economy mode"
 
 1. WRITE `economyMode: true` to `.squad/config.json` (merge, don't overwrite other fields)
-2. ACKNOWLEDGE: `✅ Economy mode saved — cost-optimized models will be used until disabled.`
+1. ACKNOWLEDGE: `✅ Economy mode saved — cost-optimized models will be used until disabled.`
 
 ### On Every Agent Spawn (Economy Mode Active)
 
 1. CHECK Layer 0a/0b first (agentModelOverrides, defaultModel) — if set, use that. Economy mode does NOT override Layer 0.
-2. CHECK Layer 1 (session directive for a specific model) — if set, use that. Economy mode does NOT override explicit session directives.
-3. CHECK Layer 2 (charter preference) — if set, use that. Economy mode does NOT override charter preferences.
-4. APPLY economy table at Layer 3 instead of normal table.
-5. INCLUDE `💰` in spawn acknowledgment: `🔧 {Name} ({model} · 💰 economy) — {task}`
+1. CHECK Layer 1 (session directive for a specific model) — if set, use that. Economy mode does NOT override explicit session directives.
+1. CHECK Layer 2 (charter preference) — if set, use that. Economy mode does NOT override charter preferences.
+1. APPLY economy table at Layer 3 instead of normal table.
+1. INCLUDE `💰` in spawn acknowledgment: `🔧 {Name} ({model} · 💰 economy) — {task}`
 
 ### On Deactivation
 
 **Trigger phrases:** "turn off economy mode", "disable economy mode", "use normal models"
 
 1. REMOVE `economyMode` from `.squad/config.json` (if it was persisted)
-2. CLEAR session economy mode state
-3. ACKNOWLEDGE: `✅ Economy mode disabled — returning to standard model selection.`
+1. CLEAR session economy mode state
+1. ACKNOWLEDGE: `✅ Economy mode disabled — returning to standard model selection.`
 
 ### STOP
 
 After updating economy mode state and including the `💰` indicator in spawn acknowledgments, this skill is done. Do NOT:
+
 - Change Layer 0, Layer 1, or Layer 2 model choices
 - Override charter-specified models
 - Generate cost reports or comparisons

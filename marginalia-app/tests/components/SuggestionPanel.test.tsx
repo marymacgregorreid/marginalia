@@ -3,21 +3,26 @@ import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { axe } from 'jest-axe'
 import { SuggestionPanel } from '@/components/SuggestionPanel'
-import type { Suggestion, SuggestionStatus } from '@/types'
+import type { Paragraph, Suggestion, SuggestionStatus } from '@/types'
 
 function createSuggestion(
   id: string,
-  status: SuggestionStatus = 'Pending'
+  status: SuggestionStatus = 'Pending',
+  paragraphId = 'p-1'
 ): Suggestion {
   return {
     id,
     documentId: 'doc-1',
-    textRange: { start: 0, end: 50 },
+    paragraphId,
     rationale: `Rationale for suggestion ${id}`,
     proposedChange: `Proposed change for ${id}`,
     status,
   }
 }
+
+const sampleParagraphs: Paragraph[] = [
+  { id: 'p-1', text: 'Sample document content for testing suggestion display.' },
+]
 
 describe('SuggestionPanel', () => {
   const suggestions = [
@@ -47,6 +52,7 @@ describe('SuggestionPanel', () => {
       ['sug-3', 3],
       ['sug-4', 4],
     ]),
+    paragraphs: sampleParagraphs,
     counts,
     onFilterChange: vi.fn(),
     onStatusChange: vi.fn(),
@@ -82,6 +88,31 @@ describe('SuggestionPanel', () => {
       expect(screen.getByText(/rationale for suggestion sug-2/i)).toBeInTheDocument()
       expect(screen.getByText(/rationale for suggestion sug-3/i)).toBeInTheDocument()
       expect(screen.getByText(/rationale for suggestion sug-4/i)).toBeInTheDocument()
+    })
+
+    it('renders paragraph connector rails only for paragraphs with multiple suggestions', () => {
+      const mixedSuggestions = [
+        createSuggestion('sug-1', 'Pending', 'p-1'),
+        createSuggestion('sug-2', 'Pending', 'p-1'),
+        createSuggestion('sug-3', 'Accepted', 'p-2'),
+      ]
+
+      const { container } = render(
+        <SuggestionPanel
+          {...defaultProps}
+          suggestions={mixedSuggestions}
+          filteredSuggestions={mixedSuggestions}
+          counts={{
+            Pending: 2,
+            Accepted: 1,
+            Rejected: 0,
+            Modified: 0,
+            total: 3,
+          }}
+        />
+      )
+
+      expect(container.querySelectorAll('[data-testid="paragraph-suggestion-connector"]').length).toBe(1)
     })
   })
 
@@ -119,6 +150,92 @@ describe('SuggestionPanel', () => {
       )
 
       expect(screen.getByText(/no.*suggestions/i)).toBeInTheDocument()
+    })
+  })
+
+  describe('unanalyzed state', () => {
+    const emptyCounts = { Pending: 0, Accepted: 0, Rejected: 0, Modified: 0, total: 0 }
+
+    it('shows analyze instruction when isUnanalyzed is true', () => {
+      render(
+        <SuggestionPanel
+          {...defaultProps}
+          suggestions={[]}
+          filteredSuggestions={[]}
+          counts={emptyCounts}
+          isUnanalyzed
+          onAnalyze={vi.fn()}
+        />
+      )
+
+      expect(
+        screen.getByText(/analyze the manuscript to generate suggestions/i)
+      ).toBeInTheDocument()
+    })
+
+    it('shows Analyze button when isUnanalyzed and onAnalyze is provided', () => {
+      render(
+        <SuggestionPanel
+          {...defaultProps}
+          suggestions={[]}
+          filteredSuggestions={[]}
+          counts={emptyCounts}
+          isUnanalyzed
+          onAnalyze={vi.fn()}
+        />
+      )
+
+      expect(screen.getByRole('button', { name: /analyze/i })).toBeInTheDocument()
+    })
+
+    it('calls onAnalyze when Analyze button is clicked', async () => {
+      const user = userEvent.setup()
+      const onAnalyze = vi.fn()
+      render(
+        <SuggestionPanel
+          {...defaultProps}
+          suggestions={[]}
+          filteredSuggestions={[]}
+          counts={emptyCounts}
+          isUnanalyzed
+          onAnalyze={onAnalyze}
+        />
+      )
+
+      await user.click(screen.getByRole('button', { name: /analyze/i }))
+
+      expect(onAnalyze).toHaveBeenCalledOnce()
+    })
+
+    it('does not show filter tabs when isUnanalyzed', () => {
+      render(
+        <SuggestionPanel
+          {...defaultProps}
+          suggestions={[]}
+          filteredSuggestions={[]}
+          counts={emptyCounts}
+          isUnanalyzed
+          onAnalyze={vi.fn()}
+        />
+      )
+
+      expect(screen.queryByRole('tab', { name: /all/i })).not.toBeInTheDocument()
+    })
+
+    it('does not show batch actions when isUnanalyzed', () => {
+      render(
+        <SuggestionPanel
+          {...defaultProps}
+          suggestions={[]}
+          filteredSuggestions={[]}
+          counts={emptyCounts}
+          isUnanalyzed
+          onAnalyze={vi.fn()}
+        />
+      )
+
+      expect(screen.queryByRole('button', { name: /accept all/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /reject all/i })).not.toBeInTheDocument()
     })
   })
 
